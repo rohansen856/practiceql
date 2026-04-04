@@ -1,0 +1,155 @@
+import { Challenge } from "@/types/challenge";
+import { EMPLOYEES_SEED, ECOMMERCE_SEED } from "../seed-data";
+
+export const subqueriesChallenges: Challenge[] = [
+  {
+    id: "sub-01",
+    title: "Above the Company Average",
+    description:
+      "List employees earning **more than the company-wide average salary**. Return first_name, last_name, and salary, ordered by salary descending.",
+    category: "subqueries",
+    difficulty: "intermediate",
+    seedSQL: EMPLOYEES_SEED,
+    expectedColumns: ["first_name", "last_name", "salary"],
+    expectedOutput: [
+      ["Eva", "Davis", 105000],
+      ["Alice", "Johnson", 95000],
+      ["Jack", "Anderson", 92000],
+      ["Mia", "White", 91000],
+      ["Bob", "Smith", 88000],
+      ["Iris", "Taylor", 85000],
+    ],
+    hints: [
+      "You need a scalar subquery - one that returns a single value - inside the WHERE clause.",
+      "Compute AVG(salary) from the employees table in a subquery, then compare each row's salary against it.",
+      "SELECT first_name, last_name, salary FROM employees WHERE salary > (SELECT AVG(salary) FROM employees) ORDER BY salary DESC",
+    ],
+    orderMatters: true,
+    starterCode:
+      "-- Fill in the subquery that returns the company-wide average salary\nSELECT first_name, last_name, salary\nFROM employees\nWHERE salary > (SELECT ... FROM employees)\nORDER BY salary DESC;",
+  },
+  {
+    id: "sub-02",
+    title: "Higher than HR's Top Earner",
+    description:
+      "Return employees whose salary is **greater than the maximum salary in the HR department** (department_id = 4). Return first_name, last_name, and salary, ordered by salary descending.",
+    category: "subqueries",
+    difficulty: "intermediate",
+    seedSQL: EMPLOYEES_SEED,
+    expectedColumns: ["first_name", "last_name", "salary"],
+    expectedOutput: [
+      ["Eva", "Davis", 105000],
+      ["Alice", "Johnson", 95000],
+      ["Jack", "Anderson", 92000],
+      ["Mia", "White", 91000],
+      ["Bob", "Smith", 88000],
+      ["Iris", "Taylor", 85000],
+      ["Grace", "Wilson", 78000],
+      ["Olivia", "Martin", 78000],
+      ["Carol", "Williams", 72000],
+      ["Karen", "Thomas", 71000],
+      ["Leo", "Jackson", 69000],
+      ["David", "Brown", 68000],
+      ["Frank", "Miller", 65000],
+    ],
+    hints: [
+      "Use a non-correlated scalar subquery: (SELECT MAX(salary) ... WHERE department_id = 4).",
+      "The subquery runs once, returns one number, and then the outer query compares each salary to it.",
+      "SELECT first_name, last_name, salary FROM employees WHERE salary > (SELECT MAX(salary) FROM employees WHERE department_id = 4) ORDER BY salary DESC",
+    ],
+    orderMatters: true,
+  },
+  {
+    id: "sub-03",
+    title: "Above Their Category Average",
+    description:
+      "List products priced **strictly above the average price of their own category**. Return name, category, and price, ordered by category then price descending.",
+    category: "subqueries",
+    difficulty: "advanced",
+    seedSQL: ECOMMERCE_SEED,
+    expectedColumns: ["name", "category", "price"],
+    expectedOutput: [
+      ["Laptop Pro", "Electronics", 1299.99],
+      ['Monitor 27"', "Electronics", 399.99],
+      ["Standing Desk", "Office", 599.99],
+      ["Ergonomic Chair", "Office", 449.99],
+    ],
+    hints: [
+      "This needs a correlated subquery: the inner query references the outer row's category.",
+      "Give the outer query an alias (e.g. `products p`) and reference `p.category` inside the subquery.",
+      "SELECT name, category, price FROM products p WHERE price > (SELECT AVG(price) FROM products WHERE category = p.category) ORDER BY category, price DESC",
+    ],
+    orderMatters: true,
+  },
+  {
+    id: "sub-04",
+    title: "Employees on Projects (EXISTS)",
+    description:
+      "List employees who are **assigned to at least one project**. Use `EXISTS`. Return first_name and last_name, ordered by employee id ascending.",
+    category: "subqueries",
+    difficulty: "intermediate",
+    seedSQL: EMPLOYEES_SEED,
+    expectedColumns: ["first_name", "last_name"],
+    expectedOutput: [
+      ["Alice", "Johnson"],
+      ["Bob", "Smith"],
+      ["Carol", "Williams"],
+      ["David", "Brown"],
+      ["Eva", "Davis"],
+      ["Frank", "Miller"],
+      ["Grace", "Wilson"],
+      ["Henry", "Moore"],
+      ["Jack", "Anderson"],
+      ["Karen", "Thomas"],
+      ["Noah", "Harris"],
+      ["Olivia", "Martin"],
+    ],
+    hints: [
+      "EXISTS returns TRUE if the inner query produces at least one row.",
+      "Correlate the inner SELECT on employee_projects with the outer employees row via employee_id.",
+      "SELECT first_name, last_name FROM employees e WHERE EXISTS (SELECT 1 FROM employee_projects WHERE employee_id = e.id) ORDER BY e.id",
+    ],
+    orderMatters: true,
+  },
+  {
+    id: "sub-05",
+    title: "Products Without Reviews (NOT EXISTS)",
+    description:
+      "Find products that have **never received a review**. Return name and category, ordered by product id ascending.",
+    category: "subqueries",
+    difficulty: "intermediate",
+    seedSQL: ECOMMERCE_SEED,
+    expectedColumns: ["name", "category"],
+    expectedOutput: [
+      ["USB-C Hub", "Electronics"],
+      ["Desk Lamp", "Office"],
+      ["Notebook Set", "Office"],
+    ],
+    hints: [
+      "NOT EXISTS is the clean way to express 'no matching row' - safer than NOT IN when nulls are possible.",
+      "Correlate the reviews subquery on product_id = p.id.",
+      "SELECT name, category FROM products p WHERE NOT EXISTS (SELECT 1 FROM reviews WHERE product_id = p.id) ORDER BY p.id",
+    ],
+    orderMatters: true,
+  },
+  {
+    id: "sub-06",
+    title: "Above-Average Departments (Derived Table)",
+    description:
+      "Find departments whose **average employee salary exceeds the overall company average**. Return the department name and its average salary (column `avg_salary`, rounded to 2 decimals), ordered by avg_salary descending. Use a subquery in the FROM clause (a derived table).",
+    category: "subqueries",
+    difficulty: "advanced",
+    seedSQL: EMPLOYEES_SEED,
+    expectedColumns: ["name", "avg_salary"],
+    expectedOutput: [
+      ["Engineering", 91600],
+      ["Finance", 88000],
+    ],
+    hints: [
+      "First build a derived table: SELECT department_id, AVG(salary) AS avg_sal FROM employees GROUP BY department_id.",
+      "JOIN that derived table against departments on id, then filter where avg_sal > (SELECT AVG(salary) FROM employees).",
+      "SELECT d.name, ROUND(dept.avg_sal, 2) AS avg_salary FROM departments d JOIN (SELECT department_id, AVG(salary) AS avg_sal FROM employees GROUP BY department_id) dept ON d.id = dept.department_id WHERE dept.avg_sal > (SELECT AVG(salary) FROM employees) ORDER BY avg_salary DESC",
+    ],
+    orderMatters: true,
+  },
+];
