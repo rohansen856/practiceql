@@ -6,7 +6,15 @@ import { useDBStore } from "@/stores/db-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { saveQuery } from "@/lib/db/persistence";
 
-export function useSqlEngine(dbName?: string) {
+interface UseSqlEngineOptions {
+  enabled?: boolean;
+}
+
+export function useSqlEngine(
+  dbName?: string,
+  options: UseSqlEngineOptions = {},
+) {
+  const enabled = options.enabled ?? true;
   const currentDB = useDBStore((s) => s.currentDB);
   const setTables = useDBStore((s) => s.setTables);
   const setSchema = useDBStore((s) => s.setSchema);
@@ -21,6 +29,7 @@ export function useSqlEngine(dbName?: string) {
   const name = dbName ?? currentDB;
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     setIsEngineReady(false);
 
@@ -39,9 +48,10 @@ export function useSqlEngine(dbName?: string) {
     return () => {
       cancelled = true;
     };
-  }, [name, setIsEngineReady, setTables, setSchema, setForeignKeys, setRowCount]);
+  }, [enabled, name, setIsEngineReady, setTables, setSchema, setForeignKeys, setRowCount]);
 
   const refreshTables = useCallback(async () => {
+    if (!enabled) return;
     const engine = await getEngine(name);
     const tables = engine.getTables();
     setTables(tables);
@@ -50,10 +60,11 @@ export function useSqlEngine(dbName?: string) {
       setForeignKeys(t.name, engine.getForeignKeys(t.name));
       setRowCount(t.name, engine.getRowCount(t.name));
     }
-  }, [name, setTables, setSchema, setForeignKeys, setRowCount]);
+  }, [enabled, name, setTables, setSchema, setForeignKeys, setRowCount]);
 
   const executeSQL = useCallback(
     async (sql: string) => {
+      if (!enabled) return null;
       setIsExecuting(true);
       setError(null);
 
@@ -82,7 +93,7 @@ export function useSqlEngine(dbName?: string) {
         setIsExecuting(false);
       }
     },
-    [name, setResults, setError, setIsExecuting, addToHistory, refreshTables]
+    [enabled, name, setResults, setError, setIsExecuting, addToHistory, refreshTables]
   );
 
   return { executeSQL, refreshTables };
