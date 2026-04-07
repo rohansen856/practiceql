@@ -9,6 +9,7 @@ import {
   HardDriveDownload,
   Moon,
   Palette,
+  Plug,
   RefreshCw,
   Settings as SettingsIcon,
   Sun,
@@ -29,6 +30,9 @@ import {
 } from "@/lib/db/persistence";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { VaultPanel } from "@/components/connections/vault-panel";
+import { ConnectionsList } from "@/components/connections/connections-list";
+import { useConnectionStore } from "@/stores/connection-store";
 
 type ThemeChoice = "light" | "dark" | "system";
 
@@ -48,9 +52,25 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [databases, setDatabases] = useState<string[]>([]);
   const [loadingDbs, setLoadingDbs] = useState(true);
+  const initVault = useConnectionStore((s) => s.initVault);
+  const vaultStatus = useConnectionStore((s) => s.vaultStatus);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    initVault();
+  }, [initVault]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash === "#connections") {
+      const el = document.getElementById("connections");
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -259,6 +279,36 @@ export default function SettingsPage() {
                 </li>
               ))}
             </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card id="connections" className="scroll-mt-16">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Plug className="h-4 w-4 text-sky-500" />
+            Database connections
+            {vaultStatus === "unlocked" && (
+              <Badge
+                variant="outline"
+                className="text-[10px] gap-1 border-primary/30 bg-primary/5 text-primary"
+              >
+                vault unlocked
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Connect to real MySQL and PostgreSQL databases. Queries run server-side
+            via the Next.js API; your credentials are encrypted in IndexedDB and
+            decrypted only while the vault is unlocked.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <VaultPanel />
+          {vaultStatus === "unlocked" && (
+            <div className="space-y-3 pt-2 border-t">
+              <ConnectionsList />
+            </div>
           )}
         </CardContent>
       </Card>
