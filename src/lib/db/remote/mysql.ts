@@ -187,25 +187,34 @@ export async function mysqlExecute(
 
 export async function mysqlSchema(payload: ConnectionPayload): Promise<RemoteSchema> {
   return withConnection(payload, async (conn) => {
-    const [tableRowsRaw] = await conn.query(
+    // Force object-shape rows for these introspection queries because the
+    // connection default is rowsAsArray:true (we want arrays for user-facing
+    // query results, but named fields for metadata).
+    const objQuery = async <T = RowDataPacket[]>(
+      sql: string,
+      values?: unknown[],
+    ): Promise<T> => {
+      const [rows] = await conn.query({ sql, rowsAsArray: false, values });
+      return rows as T;
+    };
+
+    const tableRows = await objQuery<RowDataPacket[]>(
       `SELECT TABLE_NAME, TABLE_TYPE
          FROM information_schema.TABLES
         WHERE TABLE_SCHEMA = DATABASE()
         ORDER BY TABLE_NAME`,
     );
-    const tableRows = tableRowsRaw as RowDataPacket[];
 
     const out: RemoteSchema["tables"] = [];
     for (const t of tableRows) {
       const name = String(t.TABLE_NAME);
-      const [colRaw] = await conn.query(
+      const colRows = await objQuery<RowDataPacket[]>(
         `SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_KEY
            FROM information_schema.COLUMNS
           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
           ORDER BY ORDINAL_POSITION`,
         [name],
       );
-      const colRows = colRaw as RowDataPacket[];
       const columns: ColumnInfo[] = colRows.map((c) => ({
         name: String(c.COLUMN_NAME),
         type: String(c.COLUMN_TYPE).toUpperCase(),
@@ -214,7 +223,7 @@ export async function mysqlSchema(payload: ConnectionPayload): Promise<RemoteSch
         primaryKey: c.COLUMN_KEY === "PRI",
       }));
 
-      const [fkRaw] = await conn.query(
+      const fkRows = await objQuery<RowDataPacket[]>(
         `SELECT kcu.COLUMN_NAME AS col,
                 kcu.REFERENCED_TABLE_NAME AS ref_table,
                 kcu.REFERENCED_COLUMN_NAME AS ref_column,
@@ -229,7 +238,6 @@ export async function mysqlSchema(payload: ConnectionPayload): Promise<RemoteSch
             AND kcu.REFERENCED_TABLE_NAME IS NOT NULL`,
         [name],
       );
-      const fkRows = fkRaw as RowDataPacket[];
       const foreignKeys: ForeignKeyInfo[] = fkRows.map((r) => ({
         column: String(r.col),
         refTable: String(r.ref_table),
@@ -240,10 +248,10 @@ export async function mysqlSchema(payload: ConnectionPayload): Promise<RemoteSch
 
       let rowCount = 0;
       try {
-        const [countRaw] = await conn.query(
+        const countRows = await objQuery<RowDataPacket[]>(
           `SELECT COUNT(*) AS c FROM \`${name.replace(/`/g, "``")}\``,
         );
-        rowCount = Number((countRaw as RowDataPacket[])[0]?.c ?? 0);
+        rowCount = Number(countRows[0]?.c ?? 0);
       } catch {
         rowCount = 0;
       }
