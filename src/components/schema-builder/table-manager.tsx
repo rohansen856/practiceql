@@ -17,22 +17,30 @@ import { TableInfo, ColumnInfo, ForeignKeyInfo } from "@/types/sql";
 import { useDBStore } from "@/stores/db-store";
 import { Trash2, Download, Table2, KeyRound, Type, Link2 } from "lucide-react";
 import { toast } from "sonner";
+import { quoteIdent, type SqlDialect } from "@/lib/sql/dialect";
 
 interface TableManagerProps {
   tables: TableInfo[];
   schemas: Record<string, ColumnInfo[]>;
+  dialect?: SqlDialect;
   onExecute: (sql: string) => Promise<void>;
   onRefresh: () => void;
 }
 
-export function TableManager({ tables, schemas, onExecute, onRefresh }: TableManagerProps) {
+export function TableManager({
+  tables,
+  schemas,
+  dialect = "sqlite",
+  onExecute,
+  onRefresh,
+}: TableManagerProps) {
   const foreignKeys = useDBStore((s) => s.foreignKeys);
   const rowCounts = useDBStore((s) => s.rowCounts);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const handleDrop = async (tableName: string) => {
     try {
-      await onExecute(`DROP TABLE "${tableName}";`);
+      await onExecute(`DROP TABLE ${quoteIdent(tableName, dialect)};`);
       toast.success(`Table "${tableName}" dropped`);
       setDropTarget(null);
       onRefresh();
@@ -47,20 +55,25 @@ export function TableManager({ tables, schemas, onExecute, onRefresh }: TableMan
       const fks = foreignKeys[tableName] ?? [];
       const fkByColumn: Record<string, ForeignKeyInfo> = {};
       for (const fk of fks) fkByColumn[fk.column] = fk;
+      const qi = (n: string) => quoteIdent(n, dialect);
 
       const colDefs = cols.map((c) => {
-        const parts = [`${c.name} ${c.type}`];
+        const parts = [`${qi(c.name)} ${c.type}`];
         if (c.primaryKey) parts.push("PRIMARY KEY");
         if (c.notNull && !c.primaryKey) parts.push("NOT NULL");
         const fk = fkByColumn[c.name];
         if (fk) {
-          parts.push(`REFERENCES ${fk.refTable}(${fk.refColumn || "id"})`);
-          if (fk.onDelete && fk.onDelete !== "NO ACTION") parts.push(`ON DELETE ${fk.onDelete}`);
-          if (fk.onUpdate && fk.onUpdate !== "NO ACTION") parts.push(`ON UPDATE ${fk.onUpdate}`);
+          parts.push(
+            `REFERENCES ${qi(fk.refTable)}(${qi(fk.refColumn || "id")})`,
+          );
+          if (fk.onDelete && fk.onDelete !== "NO ACTION")
+            parts.push(`ON DELETE ${fk.onDelete}`);
+          if (fk.onUpdate && fk.onUpdate !== "NO ACTION")
+            parts.push(`ON UPDATE ${fk.onUpdate}`);
         }
         return parts.join(" ");
       });
-      const sql = `CREATE TABLE ${tableName} (\n  ${colDefs.join(",\n  ")}\n);\n\n`;
+      const sql = `CREATE TABLE ${qi(tableName)} (\n  ${colDefs.join(",\n  ")}\n);\n\n`;
 
       await navigator.clipboard.writeText(sql);
       toast.success("CREATE TABLE SQL copied to clipboard");

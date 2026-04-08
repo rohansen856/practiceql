@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { SQLPreview, generateCreateSQL } from "./sql-preview";
 import { Plus, Sparkles, TableProperties } from "lucide-react";
 import { toast } from "sonner";
 import { SQL_KEYWORDS } from "@/content/sql-keywords";
+import { defaultPkColumn, type SqlDialect } from "@/lib/sql/dialect";
 
 const RESERVED_NAMES = new Set<string>(
   SQL_KEYWORDS.filter((k) => k.reserved === "reserved").map((k) =>
@@ -19,27 +20,56 @@ const RESERVED_NAMES = new Set<string>(
 
 interface CreateTableFormProps {
   tableNames?: string[];
+  dialect?: SqlDialect;
   onExecute: (sql: string) => Promise<void>;
 }
 
-const firstColumn = (): ColumnDef => ({
-  ...createEmptyColumn(),
-  name: "id",
-  type: "INTEGER",
-  primaryKey: true,
-  notNull: true,
-});
+const firstColumn = (dialect: SqlDialect): ColumnDef => {
+  const pk = defaultPkColumn(dialect);
+  return {
+    ...createEmptyColumn(),
+    name: pk.name,
+    type: pk.type,
+    primaryKey: pk.primaryKey,
+    notNull: pk.notNull,
+    autoIncrement: pk.autoIncrement,
+  };
+};
 
-export function CreateTableForm({ tableNames = [], onExecute }: CreateTableFormProps) {
+export function CreateTableForm({
+  tableNames = [],
+  dialect = "sqlite",
+  onExecute,
+}: CreateTableFormProps) {
   const [tableName, setTableName] = useState("");
   const [columns, setColumns] = useState<ColumnDef[]>([
-    firstColumn(),
+    firstColumn(dialect),
     createEmptyColumn(),
   ]);
   const [creating, setCreating] = useState(false);
   const [createIndexes, setCreateIndexes] = useState(false);
   const [withoutRowid, setWithoutRowid] = useState(false);
   const [ifNotExists, setIfNotExists] = useState(false);
+  const prevDialect = useRef(dialect);
+
+  useEffect(() => {
+    if (prevDialect.current === dialect) return;
+    prevDialect.current = dialect;
+    // If the form is still at its untouched default, re-seed the first
+    // column to match the new dialect (INTEGER → SERIAL / INT etc.).
+    setColumns((prev) => {
+      const isPristine =
+        prev.length === 2 &&
+        prev[0].name === "id" &&
+        prev[1].name === "" &&
+        !prev[1].primaryKey &&
+        !prev[0].check &&
+        !prev[0].referencesTable;
+      if (!isPristine) return prev;
+      return [firstColumn(dialect), createEmptyColumn()];
+    });
+    if (dialect !== "sqlite") setWithoutRowid(false);
+  }, [dialect]);
 
   const handleTableNameChange = (value: string) => {
     setTableName(value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase());
@@ -94,6 +124,7 @@ export function CreateTableForm({ tableNames = [], onExecute }: CreateTableFormP
     let sql = generateCreateSQL(tableName, columns, {
       createIndexes,
       withoutRowid,
+      dialect,
     });
     if (ifNotExists) {
       sql = sql.replace(/^CREATE TABLE /, "CREATE TABLE IF NOT EXISTS ");
@@ -103,7 +134,7 @@ export function CreateTableForm({ tableNames = [], onExecute }: CreateTableFormP
       await onExecute(sql);
       toast.success(`Table "${tableName}" created`);
       setTableName("");
-      setColumns([firstColumn(), createEmptyColumn()]);
+      setColumns([firstColumn(dialect), createEmptyColumn()]);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : String(e));
     } finally {
@@ -144,14 +175,16 @@ export function CreateTableForm({ tableNames = [], onExecute }: CreateTableFormP
             />
             <span>Extra indexes</span>
           </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <Switch
-              checked={withoutRowid}
-              onCheckedChange={setWithoutRowid}
-              className="scale-75"
-            />
-            <span>WITHOUT ROWID</span>
-          </label>
+          {dialect === "sqlite" && (
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <Switch
+                checked={withoutRowid}
+                onCheckedChange={setWithoutRowid}
+                className="scale-75"
+              />
+              <span>WITHOUT ROWID</span>
+            </label>
+          )}
         </div>
       </div>
 
@@ -172,6 +205,7 @@ export function CreateTableForm({ tableNames = [], onExecute }: CreateTableFormP
               column={col}
               index={i}
               tableNames={tableNames}
+              dialect={dialect}
               onChange={handleColumnChange}
               onRemove={handleColumnRemove}
               canRemove={columns.length > 1}
@@ -194,6 +228,7 @@ export function CreateTableForm({ tableNames = [], onExecute }: CreateTableFormP
         columns={columns}
         createIndexes={createIndexes}
         withoutRowid={withoutRowid}
+        dialect={dialect}
       />
 
       <Button

@@ -28,6 +28,13 @@ import {
   Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  defaultCollates,
+  defaultColumnTypes,
+  defaultForeignKeyType,
+  isIntegerType,
+  type SqlDialect,
+} from "@/lib/sql/dialect";
 
 export interface ColumnDef {
   name: string;
@@ -65,40 +72,11 @@ export const createEmptyColumn = (): ColumnDef => ({
   onUpdate: "",
 });
 
-interface TypeGroup {
-  label: string;
-  types: string[];
-}
-
-const TYPE_GROUPS: TypeGroup[] = [
-  {
-    label: "Numeric",
-    types: [
-      "INTEGER",
-      "INT",
-      "BIGINT",
-      "SMALLINT",
-      "REAL",
-      "DOUBLE",
-      "FLOAT",
-      "NUMERIC",
-      "DECIMAL(10,2)",
-    ],
-  },
-  { label: "Text", types: ["TEXT", "VARCHAR(255)", "CHAR(10)"] },
-  {
-    label: "Date / Time",
-    types: ["DATE", "TIME", "DATETIME", "TIMESTAMP"],
-  },
-  { label: "Binary", types: ["BLOB"] },
-  { label: "Boolean / Flags", types: ["BOOLEAN"] },
-  { label: "JSON", types: ["JSON"] },
-];
-
 interface ColumnEditorProps {
   column: ColumnDef;
   index: number;
   tableNames: string[];
+  dialect?: SqlDialect;
   onChange: (index: number, column: ColumnDef) => void;
   onRemove: (index: number) => void;
   canRemove: boolean;
@@ -108,10 +86,25 @@ export function ColumnEditor({
   column,
   index,
   tableNames,
+  dialect = "sqlite",
   onChange,
   onRemove,
   canRemove,
 }: ColumnEditorProps) {
+  const typeGroups = defaultColumnTypes(dialect);
+  const collateOptions = defaultCollates(dialect);
+  const autoIncrementLabel =
+    dialect === "mysql"
+      ? "AUTO_INCREMENT"
+      : dialect === "postgresql"
+        ? "SERIAL (auto-generated)"
+        : "AUTOINCREMENT";
+  const autoIncrementHint =
+    dialect === "mysql"
+      ? "Integer PK only; MySQL assigns sequential ids"
+      : dialect === "postgresql"
+        ? "Emits SERIAL/BIGSERIAL in CREATE TABLE"
+        : "Never reuse ids (rarely needed)";
   const update = <K extends keyof ColumnDef>(field: K, value: ColumnDef[K]) => {
     const updated = { ...column, [field]: value };
     if (field === "primaryKey" && value === true) {
@@ -132,9 +125,14 @@ export function ColumnEditor({
       if (!updated.referencesColumn.trim()) {
         updated.referencesColumn = "id";
       }
-      const defaultTextTypes = new Set(["TEXT", "VARCHAR(255)", "CHAR(10)", ""]);
+      const defaultTextTypes = new Set([
+        "TEXT",
+        "VARCHAR(255)",
+        "CHAR(10)",
+        "",
+      ]);
       if (defaultTextTypes.has(updated.type)) {
-        updated.type = "INTEGER";
+        updated.type = defaultForeignKeyType(dialect);
       }
     }
     onChange(index, updated);
@@ -166,7 +164,7 @@ export function ColumnEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {TYPE_GROUPS.map((g) => (
+              {typeGroups.map((g) => (
                 <SelectGroup key={g.label}>
                   <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
                     {g.label}
@@ -234,21 +232,21 @@ export function ColumnEditor({
               <div className="p-3 border-b">
                 <p className="text-xs font-semibold">Advanced constraints</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  CHECK, COLLATE, GENERATED, AUTOINCREMENT
+                  CHECK, COLLATE, GENERATED, {autoIncrementLabel}
                 </p>
               </div>
               <div className="p-3 space-y-3">
-                {column.primaryKey && (column.type === "INTEGER" || column.type === "INT") && (
+                {column.primaryKey && isIntegerType(column.type, dialect) && (
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <Label
                         htmlFor={`ai-${index}`}
                         className="text-xs font-medium"
                       >
-                        AUTOINCREMENT
+                        {autoIncrementLabel}
                       </Label>
                       <p className="text-[10px] text-muted-foreground">
-                        Never reuse ids (rarely needed)
+                        {autoIncrementHint}
                       </p>
                     </div>
                     <Switch
@@ -295,9 +293,11 @@ export function ColumnEditor({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">(none)</SelectItem>
-                      <SelectItem value="BINARY">BINARY</SelectItem>
-                      <SelectItem value="NOCASE">NOCASE</SelectItem>
-                      <SelectItem value="RTRIM">RTRIM</SelectItem>
+                      {collateOptions.map((c) => (
+                        <SelectItem key={c} value={c} className="font-mono text-xs">
+                          {c}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -316,7 +316,7 @@ export function ColumnEditor({
                     onChange={(e) => update("generatedExpr", e.target.value)}
                     className="font-mono text-xs h-8"
                   />
-                  {hasGenerated && (
+                  {hasGenerated && dialect !== "postgresql" && (
                     <div className="flex items-center justify-between">
                       <Label
                         htmlFor={`gen-stored-${index}`}
@@ -331,6 +331,11 @@ export function ColumnEditor({
                         className="scale-90"
                       />
                     </div>
+                  )}
+                  {hasGenerated && dialect === "postgresql" && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Postgres only supports STORED generated columns.
+                    </p>
                   )}
                 </div>
               </div>
@@ -490,7 +495,7 @@ export function ColumnEditor({
           )}
           {column.autoIncrement && (
             <span className="px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 font-mono">
-              AUTOINCREMENT
+              {autoIncrementLabel}
             </span>
           )}
         </div>

@@ -5,12 +5,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, FileCode } from "lucide-react";
 import { useState } from "react";
+import { quoteIdent, type SqlDialect } from "@/lib/sql/dialect";
 
 interface SQLPreviewProps {
   tableName: string;
   columns: ColumnDef[];
   createIndexes?: boolean;
   withoutRowid?: boolean;
+  dialect?: SqlDialect;
 }
 
 const KEYWORD_LITERALS = new Set([
@@ -27,40 +29,77 @@ function quoteDefault(raw: string): string {
   if (!val) return "";
   const upper = val.toUpperCase();
   if (KEYWORD_LITERALS.has(upper)) return upper;
-  // Parenthesised expression passthrough
   if (val.startsWith("(") && val.endsWith(")")) return val;
   if (!Number.isNaN(Number(val))) return val;
-  // Already quoted
   if (/^'.*'$/.test(val)) return val;
   return `'${val.replace(/'/g, "''")}'`;
+}
+
+/** Maps a user-selected "INT / BIGINT" type plus auto-increment to the
+ * SERIAL / BIGSERIAL equivalent when generating for Postgres. */
+function pgSerialFor(type: string): string {
+  const t = type.trim().toUpperCase();
+  if (t === "BIGINT") return "BIGSERIAL";
+  if (t === "SMALLINT") return "SMALLSERIAL";
+  return "SERIAL";
 }
 
 export function generateCreateSQL(
   tableName: string,
   columns: ColumnDef[],
-  opts: { createIndexes?: boolean; withoutRowid?: boolean } = {},
+  opts: {
+    createIndexes?: boolean;
+    withoutRowid?: boolean;
+    dialect?: SqlDialect;
+  } = {},
 ): string {
+  const dialect: SqlDialect = opts.dialect ?? "sqlite";
   const validCols = columns.filter((c) => c.name.trim());
   if (!tableName.trim() || validCols.length === 0) {
     return "-- Define a table name and at least one column to see the SQL preview";
   }
 
+  const qi = (n: string) => quoteIdent(n, dialect);
   const lines: string[] = [];
   const constraintLines: string[] = [];
   const extraStatements: string[] = [];
 
   for (const col of validCols) {
-    const parts: string[] = [`  ${col.name} ${col.type}`];
+    let effectiveType = col.type;
+
+    // Postgres: a PK + auto-increment column becomes SERIAL/BIGSERIAL and
+    // drops the explicit NOT NULL / PRIMARY KEY keywords handled below.
+    const pgAutoSerial =
+      dialect === "postgresql" && col.primaryKey && col.autoIncrement;
+    if (pgAutoSerial) {
+      effectiveType = pgSerialFor(col.type);
+    }
+
+    const parts: string[] = [`  ${qi(col.name)} ${effectiveType}`];
 
     if (col.generatedExpr.trim()) {
+      // Postgres only supports STORED. SQLite/MySQL support both.
+      const mode =
+        dialect === "postgresql"
+          ? "STORED"
+          : col.generatedStored
+            ? "STORED"
+            : "VIRTUAL";
       parts.push(
-        `GENERATED ALWAYS AS (${col.generatedExpr.trim()}) ${col.generatedStored ? "STORED" : "VIRTUAL"}`,
+        `GENERATED ALWAYS AS (${col.generatedExpr.trim()}) ${mode}`,
       );
+    }
+
+    // MySQL: AUTO_INCREMENT must come before PRIMARY KEY as a column attr.
+    if (dialect === "mysql" && col.primaryKey && col.autoIncrement) {
+      parts.push("AUTO_INCREMENT");
     }
 
     if (col.primaryKey) {
       parts.push("PRIMARY KEY");
-      if (col.autoIncrement) parts.push("AUTOINCREMENT");
+      if (dialect === "sqlite" && col.autoIncrement) {
+        parts.push("AUTOINCREMENT");
+      }
     }
     if (col.notNull && !col.primaryKey) parts.push("NOT NULL");
     if (col.unique && !col.primaryKey) parts.push("UNIQUE");
@@ -77,25 +116,36 @@ export function generateCreateSQL(
 
     if (col.referencesTable.trim()) {
       const refCol = col.referencesColumn.trim() || "id";
-      let ref = `REFERENCES ${col.referencesTable.trim()}(${refCol})`;
-      if (col.onDelete) ref += ` ON DELETE ${col.onDelete}`;
-      if (col.onUpdate) ref += ` ON UPDATE ${col.onUpdate}`;
-      parts.push(ref);
+      if (dialect === "mysql") {
+        // MySQL/InnoDB ignores inline REFERENCES. Emit a table-level
+        // FOREIGN KEY constraint instead so the FK is actually enforced.
+        let fk = `  FOREIGN KEY (${qi(col.name)}) REFERENCES ${qi(col.referencesTable.trim())}(${qi(refCol)})`;
+        if (col.onDelete) fk += ` ON DELETE ${col.onDelete}`;
+        if (col.onUpdate) fk += ` ON UPDATE ${col.onUpdate}`;
+        constraintLines.push(fk);
+      } else {
+        let ref = `REFERENCES ${qi(col.referencesTable.trim())}(${qi(refCol)})`;
+        if (col.onDelete) ref += ` ON DELETE ${col.onDelete}`;
+        if (col.onUpdate) ref += ` ON UPDATE ${col.onUpdate}`;
+        parts.push(ref);
+      }
     }
 
     lines.push(parts.join(" "));
   }
 
   const allLines = [...lines, ...constraintLines];
-  let sql = `CREATE TABLE ${tableName} (\n${allLines.join(",\n")}\n)`;
-  if (opts.withoutRowid) sql += " WITHOUT ROWID";
+  let sql = `CREATE TABLE ${qi(tableName)} (\n${allLines.join(",\n")}\n)`;
+  // WITHOUT ROWID is SQLite-only.
+  if (opts.withoutRowid && dialect === "sqlite") sql += " WITHOUT ROWID";
   sql += ";";
 
   if (opts.createIndexes) {
     for (const col of validCols) {
       if (col.unique && !col.primaryKey) {
+        const idxName = `idx_${tableName}_${col.name}`;
         extraStatements.push(
-          `CREATE UNIQUE INDEX idx_${tableName}_${col.name} ON ${tableName}(${col.name});`,
+          `CREATE UNIQUE INDEX ${qi(idxName)} ON ${qi(tableName)}(${qi(col.name)});`,
         );
       }
     }
@@ -111,9 +161,14 @@ export function SQLPreview({
   columns,
   createIndexes,
   withoutRowid,
+  dialect = "sqlite",
 }: SQLPreviewProps) {
   const [copied, setCopied] = useState(false);
-  const sql = generateCreateSQL(tableName, columns, { createIndexes, withoutRowid });
+  const sql = generateCreateSQL(tableName, columns, {
+    createIndexes,
+    withoutRowid,
+    dialect,
+  });
 
   const handleCopy = () => {
     navigator.clipboard.writeText(sql);
@@ -127,6 +182,9 @@ export function SQLPreview({
         <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <FileCode className="h-3.5 w-3.5 text-primary" />
           SQL preview
+          <span className="text-[10px] uppercase tracking-wide opacity-60">
+            {dialect}
+          </span>
         </span>
         <Button
           variant="ghost"

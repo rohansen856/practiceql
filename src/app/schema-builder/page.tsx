@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
-import { useSqlEngine } from "@/hooks/use-sql-engine";
+import Link from "next/link";
+import { useCallback, useEffect, useRef } from "react";
+import { useActiveEngine } from "@/hooks/use-active-engine";
 import { useDBStore } from "@/stores/db-store";
+import { useConnectionStore } from "@/stores/connection-store";
 import { CreateTableForm } from "@/components/schema-builder/create-table-form";
 import { InsertDataForm } from "@/components/schema-builder/insert-data-form";
 import { TableManager } from "@/components/schema-builder/table-manager";
@@ -17,24 +19,49 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Database, Loader2, Play, Table2 } from "lucide-react";
+import { Database, Loader2, Lock, Play, Server, Table2 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
+import { KIND_LABELS } from "@/types/connection";
+import {
+  defaultCatalogQuery,
+  KNOWN_DEFAULT_SNIPPETS,
+} from "@/lib/sql/dialect";
 
 const DB_NAME = "schema-builder";
 
 export default function SchemaBuilderPage() {
-  const { executeSQL, refreshTables } = useSqlEngine(DB_NAME);
+  const { executeSQL, refreshTables, mode, dialect, remoteLocked } =
+    useActiveEngine(DB_NAME);
   const tables = useDBStore((s) => s.tables);
   const schemas = useDBStore((s) => s.schemas);
   const isEngineReady = useDBStore((s) => s.isEngineReady);
   const isExecuting = useDBStore((s) => s.isExecuting);
   const sql = useEditorStore((s) => s.sql);
   const setSQL = useEditorStore((s) => s.setSQL);
+  const activeId = useConnectionStore((s) => s.activeId);
+  const profiles = useConnectionStore((s) => s.profiles);
+  const vaultStatus = useConnectionStore((s) => s.vaultStatus);
+
+  const activeProfile = activeId
+    ? profiles.find((p) => p.id === activeId) ?? null
+    : null;
+
+  // Seed the editor with a dialect-appropriate catalog query when the box
+  // is empty or still contains a known default snippet from another dialect.
+  const lastDialectRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastDialectRef.current === dialect) return;
+    lastDialectRef.current = dialect;
+    const trimmed = sql.trim();
+    if (trimmed === "" || KNOWN_DEFAULT_SNIPPETS.has(trimmed)) {
+      setSQL(defaultCatalogQuery(dialect));
+    }
+  }, [dialect, sql, setSQL]);
 
   const handleExecute = useCallback(
     async (sqlText: string) => {
       await executeSQL(sqlText);
-      refreshTables();
+      await refreshTables();
     },
     [executeSQL, refreshTables]
   );
@@ -43,16 +70,44 @@ export default function SchemaBuilderPage() {
     if (sql.trim()) handleExecute(sql);
   }, [sql, handleExecute]);
 
+  if (remoteLocked) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
+        <Lock className="h-8 w-8 text-muted-foreground" />
+        <div>
+          <p className="font-medium">
+            Remote connection selected but vault is{" "}
+            {vaultStatus === "locked" ? "locked" : "not set up"}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md">
+            Unlock the vault or switch back to SQLite from the engine switcher
+            in the header.
+          </p>
+        </div>
+        <Button asChild size="sm">
+          <Link href="/settings#connections">Go to Settings</Link>
+        </Button>
+      </div>
+    );
+  }
+
   if (!isEngineReady) {
     return (
       <div className="flex items-center justify-center h-full gap-2">
         <Loader2 className="h-5 w-5 animate-spin text-primary" />
         <span className="text-sm text-muted-foreground">
-          Initializing SQL engine...
+          {mode === "remote"
+            ? `Connecting to ${activeProfile?.name ?? "remote database"}...`
+            : "Initializing SQL engine..."}
         </span>
       </div>
     );
   }
+
+  const engineLabel =
+    mode === "remote" && activeProfile
+      ? `${KIND_LABELS[activeProfile.kind]} · ${activeProfile.name}`
+      : "SQLite (local)";
 
   return (
     <ResizablePanelGroup direction="horizontal" className="h-full">
@@ -75,6 +130,22 @@ export default function SchemaBuilderPage() {
                   >
                     <Table2 className="h-2.5 w-2.5 text-primary" />
                     {tables.length} table{tables.length === 1 ? "" : "s"}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={
+                      mode === "remote"
+                        ? "gap-1 text-[10px] border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                        : "gap-1 text-[10px]"
+                    }
+                    title={engineLabel}
+                  >
+                    {mode === "remote" ? (
+                      <Server className="h-2.5 w-2.5" />
+                    ) : (
+                      <Database className="h-2.5 w-2.5" />
+                    )}
+                    {engineLabel}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -99,18 +170,25 @@ export default function SchemaBuilderPage() {
               <TabsContent value="create" className="mt-4">
                 <CreateTableForm
                   tableNames={tables.map((t) => t.name)}
+                  dialect={dialect}
                   onExecute={handleExecute}
                 />
               </TabsContent>
 
               <TabsContent value="insert" className="mt-4">
-                <InsertDataForm tables={tables} schemas={schemas} onExecute={handleExecute} />
+                <InsertDataForm
+                  tables={tables}
+                  schemas={schemas}
+                  dialect={dialect}
+                  onExecute={handleExecute}
+                />
               </TabsContent>
 
               <TabsContent value="tables" className="mt-4">
                 <TableManager
                   tables={tables}
                   schemas={schemas}
+                  dialect={dialect}
                   onExecute={handleExecute}
                   onRefresh={refreshTables}
                 />

@@ -15,14 +15,21 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableInfo, ColumnInfo } from "@/types/sql";
 import { toast } from "sonner";
+import { quoteIdent, type SqlDialect } from "@/lib/sql/dialect";
 
 interface InsertDataFormProps {
   tables: TableInfo[];
   schemas: Record<string, ColumnInfo[]>;
+  dialect?: SqlDialect;
   onExecute: (sql: string) => Promise<void>;
 }
 
-export function InsertDataForm({ tables, schemas, onExecute }: InsertDataFormProps) {
+export function InsertDataForm({
+  tables,
+  schemas,
+  dialect = "sqlite",
+  onExecute,
+}: InsertDataFormProps) {
   const [selectedTable, setSelectedTable] = useState<string>("");
   const [rowValues, setRowValues] = useState<Record<string, string>>({});
   const [bulkSQL, setBulkSQL] = useState("");
@@ -44,7 +51,7 @@ export function InsertDataForm({ tables, schemas, onExecute }: InsertDataFormPro
       return;
     }
 
-    const colNames = cols.map((c) => c.name).join(", ");
+    const colNames = cols.map((c) => quoteIdent(c.name, dialect)).join(", ");
     const values = cols
       .map((c) => {
         const val = rowValues[c.name].trim();
@@ -54,7 +61,7 @@ export function InsertDataForm({ tables, schemas, onExecute }: InsertDataFormPro
       })
       .join(", ");
 
-    const sql = `INSERT INTO ${selectedTable} (${colNames}) VALUES (${values});`;
+    const sql = `INSERT INTO ${quoteIdent(selectedTable, dialect)} (${colNames}) VALUES (${values});`;
     setInserting(true);
     try {
       await onExecute(sql);
