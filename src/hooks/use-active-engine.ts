@@ -8,6 +8,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { executeRemote, fetchRemoteSchema } from "@/lib/db/remote-engine";
 import { saveQuery } from "@/lib/db/persistence";
 import { TableInfo } from "@/types/sql";
+import type { SqlDialect } from "@/lib/sql/dialect";
 
 /**
  * Unified engine hook for the Playground.
@@ -20,6 +21,14 @@ export function useActiveEngine(sqliteDbName = "playground") {
   const activeId = useConnectionStore((s) => s.activeId);
   const vaultStatus = useConnectionStore((s) => s.vaultStatus);
   const getPayload = useConnectionStore((s) => s.getPayload);
+  const activeProfile = useConnectionStore((s) =>
+    s.activeId ? s.profiles.find((p) => p.id === s.activeId) ?? null : null,
+  );
+  const dialect: SqlDialect = activeProfile
+    ? activeProfile.kind === "mysql"
+      ? "mysql"
+      : "postgresql"
+    : "sqlite";
 
   const setTables = useDBStore((s) => s.setTables);
   const setSchema = useDBStore((s) => s.setSchema);
@@ -122,6 +131,7 @@ export function useActiveEngine(sqliteDbName = "playground") {
   if (remoteActive) {
     return {
       mode: "remote" as const,
+      dialect,
       executeSQL: executeRemoteSql,
       refreshTables: refreshRemote,
       remoteLocked: false,
@@ -132,6 +142,7 @@ export function useActiveEngine(sqliteDbName = "playground") {
   if (remoteLocked) {
     return {
       mode: "remote" as const,
+      dialect,
       executeSQL: async () => null,
       refreshTables: async () => {},
       remoteLocked: true,
@@ -141,6 +152,7 @@ export function useActiveEngine(sqliteDbName = "playground") {
 
   return {
     mode: "sqlite" as const,
+    dialect: "sqlite" as const,
     executeSQL: sqlite.executeSQL,
     refreshTables: sqlite.refreshTables,
     remoteLocked: false,
