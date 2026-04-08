@@ -19,7 +19,7 @@ Next.js API routes and an encrypted credential vault.
 | A.1.1 | Landing page (`/`) | [src/app/page.tsx](src/app/page.tsx) |
 | A.1.2 | App shell (sidebar, header with engine switcher, theme provider, toaster) | [src/app/layout.tsx](src/app/layout.tsx), [src/components/layout/](src/components/layout) |
 | A.1.3 | SQL Playground (`/playground`) — CodeMirror editor, schema/history tabs, resizable panels, results panel | [src/app/playground/page.tsx](src/app/playground/page.tsx), [src/components/sql-editor/](src/components/sql-editor), [src/components/results/](src/components/results) |
-| A.1.4 | Schema Builder (`/schema-builder`) — column editor, FK dropdowns with auto-type inference, single-PK enforcement, CHECK / COLLATE / GENERATED / WITHOUT ROWID, live SQL preview, insert-data form, table manager with row counts + FK badges | [src/app/schema-builder/page.tsx](src/app/schema-builder/page.tsx), [src/components/schema-builder/](src/components/schema-builder) |
+| A.1.4 | Schema Builder (`/schema-builder`) — engine-aware (SQLite / MySQL / PostgreSQL via active connection), dialect-aware SQL generator (`SERIAL`, `AUTO_INCREMENT`, `AUTOINCREMENT`, backtick vs double-quote identifiers, MySQL table-level `FOREIGN KEY`, Postgres `STORED`-only generated columns), dialect-appropriate type picker + COLLATE presets, column editor with FK dropdowns, single-PK enforcement, CHECK / COLLATE / GENERATED / WITHOUT ROWID (SQLite only), live SQL preview, insert-data form, table manager with row counts + FK badges | [src/app/schema-builder/page.tsx](src/app/schema-builder/page.tsx), [src/components/schema-builder/](src/components/schema-builder), [src/lib/sql/dialect.ts](src/lib/sql/dialect.ts) |
 | A.1.5 | Tutorials list + viewer (`/tutorials`, `/tutorials/[slug]`) | [src/app/tutorials/](src/app/tutorials) |
 | A.1.6 | SQL Keyword Reference (`/tutorials/reference/keywords`) — 100+ keywords, searchable | [src/content/sql-keywords.ts](src/content/sql-keywords.ts), [src/app/tutorials/reference/keywords/page.tsx](src/app/tutorials/reference/keywords/page.tsx) |
 | A.1.7 | Challenges list + detail (`/challenges`, `/challenges/[id]`) with progressive hints, expected-vs-actual comparison, prev/next nav | [src/app/challenges/](src/app/challenges), [src/components/challenges/](src/components/challenges) |
@@ -78,19 +78,40 @@ query. No pooling, no persistence on the server, no auth bypass.
 | # | Feature | Current state | Gap |
 |---|---|---|---|
 | B.1 | Tutorial diagram coverage | Each tutorial embeds at least one `InteractiveSQLBlock` or `TableVisualization`; heavier `JoinDiagram` / `ERDiagram` usage varies | Audit JOIN / query-processing tutorials and ensure every concept has a dedicated visual. |
-| B.2 | Remote engine support in Schema Builder | Schema Builder currently targets SQLite only (creates / drops / inspects with `PRAGMA`) | Either (a) gate the Schema Builder to SQLite and surface a clear banner when a remote connection is active, or (b) add engine-specific SQL generation (`SERIAL` vs `INTEGER AUTOINCREMENT`, backtick vs double-quote identifiers) and remote DDL. Currently ungated — if you select a remote engine, the Schema Builder page will still show your SQLite schema. This is confusing; tracking as a priority gap. |
+| B.2 | Remote engine support in Schema Builder | **Shipped.** Schema Builder now routes through `useActiveEngine`; DDL/DML is dialect-aware (SQLite / MySQL / PostgreSQL) via [src/lib/sql/dialect.ts](src/lib/sql/dialect.ts); Tables/Insert/Create tabs read the active DB's tables, row counts, and foreign keys. Verified end-to-end against local Docker MySQL/Postgres. | Follow-ups: per-dialect reserved-word lists, advanced MySQL `ENGINE=`/`CHARSET=` options, Postgres cross-schema support. |
 | B.3 | Progressive remote fallback for the Playground | Active remote connection writes through the API route on every query | Add optional connection pooling / keep-alive behind a feature flag for heavy sessions. |
 
 ---
 
 ## Section C - Planned (priority order)
 
-### C.1 Engine-aware Schema Builder
-- Detect active engine via `useConnectionStore().activeId`.
-- When remote, disable "Save to database" and swap the SQL preview to the
-  target dialect; alternatively, issue DDL via `executeRemote`.
-- Dialect-aware type palette (e.g., `SERIAL` / `BIGSERIAL` / `UUID` for
-  Postgres, `AUTO_INCREMENT` / `TINYINT(1)` for MySQL).
+### C.1 Engine-aware Schema Builder — **Shipped**
+- Routes all DDL/DML and schema reads through `useActiveEngine` so the
+  Create/Insert/Tables tabs, the sidebar schema panel, and the SQL editor
+  all track the currently-active connection.
+- Dialect-aware SQL generator in [src/lib/sql/dialect.ts](src/lib/sql/dialect.ts)
+  + [src/components/schema-builder/sql-preview.tsx](src/components/schema-builder/sql-preview.tsx):
+  `SERIAL`/`BIGSERIAL` + `PRIMARY KEY` on Postgres, `INT AUTO_INCREMENT
+  PRIMARY KEY` on MySQL, `INTEGER PRIMARY KEY AUTOINCREMENT` on SQLite.
+- Dialect-appropriate identifier quoting (backticks for MySQL, double
+  quotes otherwise), type picker, COLLATE suggestions, and catalog-query
+  seed (`SHOW TABLES;` / `information_schema` / `sqlite_master`).
+- MySQL foreign keys emitted as table-level `FOREIGN KEY` clauses
+  (InnoDB ignores inline column-level `REFERENCES`).
+- `WITHOUT ROWID` and `GENERATED … VIRTUAL` toggles hidden on
+  non-SQLite / Postgres respectively.
+- Fixed pre-existing bug where `mysqlSchema()` returned `{name:
+  "undefined"}` due to connection-wide `rowsAsArray: true`; introspection
+  queries now opt into object-shape rows.
+- Verified end-to-end against local Docker containers
+  (`practiceql-postgres`, `practiceql-mysql`): CREATE + INSERT + schema
+  reads + row counts + DROP all confirmed both through the `/api/db/*`
+  routes and via `docker exec psql` / `SHOW CREATE TABLE`.
+
+Possible follow-ups (not blocking): per-dialect reserved-word lists,
+MySQL `ENGINE=`/`CHARSET=` options, Postgres cross-schema support
+(currently filters to `public`), shared local SQLite DB between
+Playground and Schema Builder.
 
 ### C.2 Remote connection polish
 - **Pooling** — opt-in connection reuse per browser tab, with idle timeout and
@@ -154,7 +175,7 @@ query. No pooling, no persistence on the server, no auth bypass.
 
 | # | Task | Priority | Depends on |
 |---|---|---|---|
-| 1 | **C.1** — Engine-aware Schema Builder (at least: gate + banner) | HIGH | A.4 (done) |
+| 1 | **C.1** — Engine-aware Schema Builder | DONE | A.4 (done) |
 | 2 | **C.2** — Remote connection polish (pooling, cancel, streaming, read-only) | HIGH | A.4 (done) |
 | 3 | **B.1** — Diagram coverage audit across existing tutorials | MEDIUM | — |
 | 4 | **C.3** — PGlite adapter | MEDIUM | — |
