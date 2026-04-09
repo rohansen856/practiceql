@@ -5,7 +5,12 @@ import { ChallengeCard } from "@/components/challenges/challenge-card";
 import { ChallengeFilters } from "@/components/challenges/challenge-filters";
 import { challengeSets, allChallenges } from "@/content/challenges";
 import { useProgressStore } from "@/stores/progress-store";
-import { ChallengeCategory, Difficulty } from "@/types/challenge";
+import {
+  ChallengeCategory,
+  Difficulty,
+  getChallengeDialects,
+} from "@/types/challenge";
+import { SqlDialect } from "@/lib/sql/dialect";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Trophy, CheckCircle2 } from "lucide-react";
@@ -13,6 +18,7 @@ import { Trophy, CheckCircle2 } from "lucide-react";
 export default function ChallengesPage() {
   const [category, setCategory] = useState<ChallengeCategory | "all">("all");
   const [difficulty, setDifficulty] = useState<Difficulty | "all">("all");
+  const [dialect, setDialect] = useState<SqlDialect | "all">("all");
   const challengeProgress = useProgressStore((s) => s.challengeProgress);
   const loadProgress = useProgressStore((s) => s.loadProgress);
   const loaded = useProgressStore((s) => s.loaded);
@@ -25,9 +31,11 @@ export default function ChallengesPage() {
     return allChallenges.filter((c) => {
       if (category !== "all" && c.category !== category) return false;
       if (difficulty !== "all" && c.difficulty !== difficulty) return false;
+      if (dialect !== "all" && !getChallengeDialects(c).includes(dialect))
+        return false;
       return true;
     });
-  }, [category, difficulty]);
+  }, [category, difficulty, dialect]);
 
   const completedCount = Object.values(challengeProgress).filter((p) => p.completed).length;
 
@@ -95,8 +103,10 @@ export default function ChallengesPage() {
         <ChallengeFilters
           category={category}
           difficulty={difficulty}
+          dialect={dialect}
           onCategoryChange={setCategory}
           onDifficultyChange={setDifficulty}
+          onDialectChange={setDialect}
         />
 
         {/* Challenge Grid */}

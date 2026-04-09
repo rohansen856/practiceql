@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Challenge } from "@/types/challenge";
+import { Challenge, getChallengeDialects } from "@/types/challenge";
+import { SqlDialect } from "@/lib/sql/dialect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,6 +13,24 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   intermediate: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
   advanced: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
   expert: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+};
+
+const DIALECT_META: Record<SqlDialect, { label: string; className: string }> = {
+  sqlite: {
+    label: "SQLite",
+    className:
+      "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30",
+  },
+  mysql: {
+    label: "MySQL",
+    className:
+      "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/30",
+  },
+  postgresql: {
+    label: "PostgreSQL",
+    className:
+      "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+  },
 };
 
 interface ChallengeDescriptionProps {
@@ -39,13 +58,40 @@ export function ChallengeDescription({ challenge }: ChallengeDescriptionProps) {
   return (
     <div className="space-y-4">
       <div>
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
           <Badge variant="outline" className="text-[10px]">
             {challenge.category}
           </Badge>
-          <Badge variant="outline" className={`text-[10px] ${DIFFICULTY_COLORS[challenge.difficulty]}`}>
+          <Badge
+            variant="outline"
+            className={`text-[10px] ${DIFFICULTY_COLORS[challenge.difficulty]}`}
+          >
             {challenge.difficulty}
           </Badge>
+          {(() => {
+            const ds = getChallengeDialects(challenge);
+            if (ds.length === 3) {
+              return (
+                <Badge
+                  variant="outline"
+                  className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30"
+                  title="Portable across SQLite, MySQL and PostgreSQL"
+                >
+                  Portable
+                </Badge>
+              );
+            }
+            return ds.map((d) => (
+              <Badge
+                key={d}
+                variant="outline"
+                className={`text-[10px] ${DIALECT_META[d].className}`}
+                title={`Works on ${DIALECT_META[d].label}`}
+              >
+                {DIALECT_META[d].label}
+              </Badge>
+            ));
+          })()}
         </div>
         <h2 className="text-lg font-semibold">{challenge.title}</h2>
         <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
