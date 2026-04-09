@@ -1,6 +1,11 @@
 import { Challenge } from "@/types/challenge";
 import { ECOMMERCE_SEED, EMPLOYEES_SEED } from "../seed-data";
 
+// Most of these challenges verify the index via `sqlite_master`, a catalog
+// table that only exists in SQLite. The `CREATE INDEX` syntax itself is
+// portable, but the verification step is not — so we tag them SQLite-only.
+// A partial-index challenge is tagged SQLite+PostgreSQL since both support
+// the `WHERE` clause on CREATE INDEX (MySQL does not).
 export const indexesChallenges: Challenge[] = [
   {
     id: "idx-01",
@@ -8,6 +13,7 @@ export const indexesChallenges: Challenge[] = [
     description: "Speed up searches on `employees.email` by creating an index called `idx_employees_email`. Then run the final `SELECT` to confirm it exists in `sqlite_master`.",
     category: "indexes",
     difficulty: "beginner",
+    dialects: ["sqlite"],
     seedSQL: EMPLOYEES_SEED,
     expectedColumns: ["name", "tbl_name"],
     expectedOutput: [
@@ -27,6 +33,7 @@ export const indexesChallenges: Challenge[] = [
     description: "Create a composite index `idx_emp_dept_salary` on `employees(department_id, salary)` to support queries that filter by department and sort by salary. Then list it from `sqlite_master`.",
     category: "indexes",
     difficulty: "intermediate",
+    dialects: ["sqlite"],
     seedSQL: EMPLOYEES_SEED,
     expectedColumns: ["name", "tbl_name"],
     expectedOutput: [
@@ -46,6 +53,7 @@ export const indexesChallenges: Challenge[] = [
     description: "Emails must be unique. Create a **unique index** `uniq_customer_email` on `customers(email)`, then confirm it from `sqlite_master` (the sql column should contain `UNIQUE`).",
     category: "indexes",
     difficulty: "intermediate",
+    dialects: ["sqlite"],
     seedSQL: ECOMMERCE_SEED,
     expectedColumns: ["name"],
     expectedOutput: [
@@ -62,9 +70,10 @@ export const indexesChallenges: Challenge[] = [
   {
     id: "idx-04",
     title: "Partial Index",
-    description: "Create a **partial index** `idx_orders_pending` on `orders(customer_id)` that only indexes rows where `status = 'pending'`. Confirm it exists.",
+    description: "Create a **partial index** `idx_orders_pending` on `orders(customer_id)` that only indexes rows where `status = 'pending'`. Confirm it exists. Partial indexes are supported by **SQLite** and **PostgreSQL** (MySQL does not support them).",
     category: "indexes",
     difficulty: "advanced",
+    dialects: ["sqlite", "postgresql"],
     seedSQL: ECOMMERCE_SEED,
     expectedColumns: ["name"],
     expectedOutput: [
@@ -84,6 +93,7 @@ export const indexesChallenges: Challenge[] = [
     description: "An existing index `idx_old` is slowing down writes. **Drop it** and confirm it no longer exists. (The seed already created it for you.) Return a single column `index_count` giving the number of indexes named `idx_old` remaining (should be 0).",
     category: "indexes",
     difficulty: "beginner",
+    dialects: ["sqlite"],
     seedSQL: ["EMPLOYEES_SEED", "\nCREATE INDEX idx_old ON employees(last_name);\n"],
     expectedColumns: ["index_count"],
     expectedOutput: [
@@ -103,6 +113,7 @@ export const indexesChallenges: Challenge[] = [
     description: "After creating an index on `products.category`, use `sqlite_master` to list **all indexes on the products table**. Return `name` (ordered ascending).",
     category: "indexes",
     difficulty: "intermediate",
+    dialects: ["sqlite"],
     seedSQL: ECOMMERCE_SEED,
     expectedColumns: ["name"],
     expectedOutput: [

@@ -1,5 +1,9 @@
 import { Challenge } from "@/types/challenge";
 
+// Most of these use `INSERT OR IGNORE` (SQLite-only; PG uses `ON CONFLICT
+// DO NOTHING`, MySQL uses `INSERT IGNORE`). The constraint definitions
+// themselves (NOT NULL, UNIQUE, CHECK, DEFAULT, composite PK, GENERATED) are
+// portable, but since the runner is SQLite we tag by the exact syntax used.
 export const constraintsChallenges: Challenge[] = [
   {
     id: "con-01",
@@ -7,6 +11,7 @@ export const constraintsChallenges: Challenge[] = [
     description: "Create a table `users(id INTEGER PRIMARY KEY, email TEXT NOT NULL)`, insert two valid rows and one invalid row (NULL email) using `INSERT OR IGNORE`. Finally `SELECT id, email FROM users ORDER BY id`.",
     category: "constraints",
     difficulty: "beginner",
+    dialects: ["sqlite"],
     seedSQL: "",
     expectedColumns: ["id", "email"],
     expectedOutput: [
@@ -27,6 +32,7 @@ export const constraintsChallenges: Challenge[] = [
     description: "Create `emails(id INTEGER PRIMARY KEY, address TEXT UNIQUE)`, insert three rows where the third tries to duplicate the first (use `INSERT OR IGNORE`). Then `SELECT id, address FROM emails ORDER BY id`.",
     category: "constraints",
     difficulty: "beginner",
+    dialects: ["sqlite"],
     seedSQL: "",
     expectedColumns: ["id", "address"],
     expectedOutput: [
@@ -47,6 +53,7 @@ export const constraintsChallenges: Challenge[] = [
     description: "Create `products(id INTEGER PRIMARY KEY, name TEXT, price REAL CHECK(price > 0))`. Insert 3 valid rows and one invalid (price = 0) using `INSERT OR IGNORE`. Return `id, name, price` ordered by id.",
     category: "constraints",
     difficulty: "intermediate",
+    dialects: ["sqlite"],
     seedSQL: "",
     expectedColumns: ["id", "name", "price"],
     expectedOutput: [
@@ -68,6 +75,7 @@ export const constraintsChallenges: Challenge[] = [
     description: "Create a link table `tagging(post_id INTEGER, tag_id INTEGER, PRIMARY KEY(post_id, tag_id))`, insert 4 rows and one duplicate (using `INSERT OR IGNORE`). Return `post_id, tag_id` ordered by both.",
     category: "constraints",
     difficulty: "intermediate",
+    dialects: ["sqlite"],
     seedSQL: "",
     expectedColumns: ["post_id", "tag_id"],
     expectedOutput: [
@@ -90,6 +98,7 @@ export const constraintsChallenges: Challenge[] = [
     description: "Create `authors(id INTEGER PRIMARY KEY, name TEXT)` and `books(id INTEGER PRIMARY KEY, title TEXT, author_id INTEGER REFERENCES authors(id) ON DELETE CASCADE)`. Enable foreign keys with `PRAGMA foreign_keys = ON;`. Insert 2 authors and 3 books, then delete author 1. Return `id, title, author_id FROM books ORDER BY id` (the cascade should remove author 1's books).",
     category: "constraints",
     difficulty: "advanced",
+    dialects: ["sqlite"],
     seedSQL: "",
     expectedColumns: ["id", "title", "author_id"],
     expectedOutput: [
