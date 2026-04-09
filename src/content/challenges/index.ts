@@ -10,6 +10,7 @@ import { indexesChallenges } from "./indexes";
 import { constraintsChallenges } from "./constraints";
 import { complexChallenges } from "./complex-queries";
 import { advancedChallenges } from "./advanced";
+import { dialectSpecificChallenges } from "./dialect-specific";
 
 export const challengeSets: ChallengeSet[] = [
   {
@@ -71,6 +72,12 @@ export const challengeSets: ChallengeSet[] = [
     label: "Advanced",
     description: "CTEs, recursive queries, CASE, COALESCE, UNION, and combined patterns",
     challenges: advancedChallenges,
+  },
+  {
+    category: "dialect-specific",
+    label: "Dialect-Specific",
+    description: "UPSERT, RETURNING, JSON, PRAGMA, GROUP_CONCAT — patterns that vary by engine",
+    challenges: dialectSpecificChallenges,
   },
 ];
 
