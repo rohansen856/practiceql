@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef } from "react";
 import { useActiveEngine } from "@/hooks/use-active-engine";
 import { useDBStore } from "@/stores/db-store";
@@ -10,6 +9,7 @@ import { InsertDataForm } from "@/components/schema-builder/insert-data-form";
 import { TableManager } from "@/components/schema-builder/table-manager";
 import { SQLEditor } from "@/components/sql-editor/sql-editor";
 import { ResultsPanel } from "@/components/results/results-panel";
+import { RemoteLockedGate } from "@/components/connections/remote-locked-gate";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Database, Loader2, Lock, Play, Server, Table2 } from "lucide-react";
+import { Database, Loader2, Play, Server, Table2 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
 import { KIND_LABELS } from "@/types/connection";
 import {
@@ -40,7 +40,6 @@ export default function SchemaBuilderPage() {
   const setSQL = useEditorStore((s) => s.setSQL);
   const activeId = useConnectionStore((s) => s.activeId);
   const profiles = useConnectionStore((s) => s.profiles);
-  const vaultStatus = useConnectionStore((s) => s.vaultStatus);
 
   const activeProfile = activeId
     ? profiles.find((p) => p.id === activeId) ?? null
@@ -71,24 +70,7 @@ export default function SchemaBuilderPage() {
   }, [sql, handleExecute]);
 
   if (remoteLocked) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
-        <Lock className="h-8 w-8 text-muted-foreground" />
-        <div>
-          <p className="font-medium">
-            Remote connection selected but vault is{" "}
-            {vaultStatus === "locked" ? "locked" : "not set up"}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Unlock the vault or switch back to SQLite from the engine switcher
-            in the header.
-          </p>
-        </div>
-        <Button asChild size="sm">
-          <Link href="/settings#connections">Go to Settings</Link>
-        </Button>
-      </div>
-    );
+    return <RemoteLockedGate />;
   }
 
   if (!isEngineReady) {

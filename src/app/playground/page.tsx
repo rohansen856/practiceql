@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useState } from "react";
 import { SQLEditor } from "@/components/sql-editor/sql-editor";
 import { SQLEditorToolbar } from "@/components/sql-editor/sql-editor-toolbar";
 import { ResultsPanel } from "@/components/results/results-panel";
 import { TableBrowser } from "@/components/shared/table-browser";
+import { RemoteLockedGate } from "@/components/connections/remote-locked-gate";
 import { useActiveEngine } from "@/hooks/use-active-engine";
 import { useEditorStore } from "@/stores/editor-store";
 import { useDBStore } from "@/stores/db-store";
@@ -18,8 +18,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Loader2, Lock, Server } from "lucide-react";
+import { Loader2, Server } from "lucide-react";
 import { KIND_LABELS } from "@/types/connection";
 
 export default function PlaygroundPage() {
@@ -29,7 +28,6 @@ export default function PlaygroundPage() {
   const isEngineReady = useDBStore((s) => s.isEngineReady);
   const activeId = useConnectionStore((s) => s.activeId);
   const profiles = useConnectionStore((s) => s.profiles);
-  const vaultStatus = useConnectionStore((s) => s.vaultStatus);
   const { executeSQL, mode, remoteLocked } = useActiveEngine("playground");
   const [showHistory, setShowHistory] = useState(false);
 
@@ -48,21 +46,7 @@ export default function PlaygroundPage() {
   );
 
   if (remoteLocked) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-3 p-6 text-center">
-        <Lock className="h-8 w-8 text-muted-foreground" />
-        <div>
-          <p className="font-medium">Remote connection selected but vault is {vaultStatus === "locked" ? "locked" : "not set up"}</p>
-          <p className="text-sm text-muted-foreground mt-1 max-w-md">
-            Unlock the vault or switch back to SQLite from the engine switcher
-            in the header.
-          </p>
-        </div>
-        <Button asChild size="sm">
-          <Link href="/settings#connections">Go to Settings</Link>
-        </Button>
-      </div>
-    );
+    return <RemoteLockedGate />;
   }
 
   if (!isEngineReady) {
