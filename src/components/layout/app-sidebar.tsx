@@ -135,8 +135,7 @@ export function AppSidebar() {
       {sidebarOpen && (
         <div className="p-3 border-t border-sidebar-border">
           <p className="text-[10px] text-sidebar-foreground/60 text-center leading-relaxed">
-            Powered by <span className="text-primary font-medium">sql.js</span>{" "}
-            - SQLite in WASM
+            Powered by <span className="text-primary font-medium">PracticeQL</span>{" "}
           </p>
         </div>
       )}
