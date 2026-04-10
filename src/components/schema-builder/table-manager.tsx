@@ -12,10 +12,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { TableInfo, ColumnInfo, ForeignKeyInfo } from "@/types/sql";
 import { useDBStore } from "@/stores/db-store";
-import { Trash2, Download, Table2, KeyRound, Type, Link2 } from "lucide-react";
+import {
+  Trash2,
+  Download,
+  Table2,
+  KeyRound,
+  Type,
+  Link2,
+  ArrowRight,
+  Ban,
+  Hash,
+} from "lucide-react";
 import { toast } from "sonner";
 import { quoteIdent, type SqlDialect } from "@/lib/sql/dialect";
 
@@ -167,55 +176,114 @@ export function TableManager({
                 </DialogContent>
               </Dialog>
             </div>
-            <ScrollArea className="max-h-48">
-              <div className="p-2 space-y-0.5">
-                {cols.map((col) => {
+            <div className="p-2 space-y-1">
+              {cols.map((col, idx) => {
                   const fk = fkByColumn[col.name];
+                  const hasDefault =
+                    col.defaultValue !== null &&
+                    col.defaultValue !== undefined &&
+                    col.defaultValue !== "";
                   return (
                     <div
                       key={col.name}
-                      className="flex items-center gap-2 px-2 py-0.5 text-xs flex-wrap"
+                      className="rounded-md border border-border/60 bg-muted/20 px-2 py-1.5 text-xs"
                     >
-                      {col.primaryKey ? (
-                        <KeyRound className="h-3 w-3 text-amber-500 shrink-0" />
-                      ) : fk ? (
-                        <Link2 className="h-3 w-3 text-primary shrink-0" />
-                      ) : (
-                        <Type className="h-3 w-3 text-muted-foreground shrink-0" />
-                      )}
-                      <span className="font-mono">{col.name}</span>
-                      <span className="text-muted-foreground">{col.type}</span>
-                      {col.notNull && !col.primaryKey && (
-                        <Badge variant="outline" className="text-[9px] px-1 py-0">
-                          NOT NULL
-                        </Badge>
-                      )}
-                      {fk && (
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className="text-[10px] font-mono px-1.5 py-0 rounded border border-primary/30 bg-primary/5 text-primary"
-                          title={
-                            [
-                              `REFERENCES ${fk.refTable}(${fk.refColumn})`,
-                              fk.onDelete && fk.onDelete !== "NO ACTION"
-                                ? `ON DELETE ${fk.onDelete}`
-                                : "",
-                              fk.onUpdate && fk.onUpdate !== "NO ACTION"
-                                ? `ON UPDATE ${fk.onUpdate}`
-                                : "",
-                            ]
-                              .filter(Boolean)
-                              .join(" ")
-                          }
+                          className="font-mono text-[10px] text-muted-foreground/80 w-5 text-right tabular-nums"
+                          title={`Column #${idx + 1}`}
                         >
-                          → {fk.refTable}
-                          {fk.refColumn ? `(${fk.refColumn})` : ""}
+                          {idx + 1}
                         </span>
+                        {col.primaryKey ? (
+                          <KeyRound className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        ) : fk ? (
+                          <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                        ) : (
+                          <Type className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        )}
+                        <span className="font-mono font-medium">
+                          {col.name}
+                        </span>
+                        <Badge
+                          variant="secondary"
+                          className="text-[9px] px-1 py-0 font-mono uppercase"
+                        >
+                          {col.type || "ANY"}
+                        </Badge>
+                        {col.primaryKey && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 gap-0.5 border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                          >
+                            <KeyRound className="h-2.5 w-2.5" />
+                            PK
+                          </Badge>
+                        )}
+                        {col.notNull ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 gap-0.5 border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300"
+                          >
+                            <Ban className="h-2.5 w-2.5" />
+                            NOT NULL
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 text-muted-foreground"
+                          >
+                            NULLABLE
+                          </Badge>
+                        )}
+                        {fk && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 gap-0.5 border-primary/30 bg-primary/5 text-primary"
+                          >
+                            <Link2 className="h-2.5 w-2.5" />
+                            FK
+                          </Badge>
+                        )}
+                      </div>
+
+                      {(hasDefault || fk) && (
+                        <div className="mt-1 pl-7 flex items-center gap-2 flex-wrap text-[10px]">
+                          {hasDefault && (
+                            <span
+                              className="inline-flex items-center gap-1 font-mono px-1.5 py-0 rounded border border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                              title={`DEFAULT ${col.defaultValue}`}
+                            >
+                              <Hash className="h-2.5 w-2.5" />
+                              DEFAULT
+                              <span className="font-normal">
+                                {String(col.defaultValue)}
+                              </span>
+                            </span>
+                          )}
+                          {fk && (
+                            <span className="inline-flex items-center gap-1 font-mono px-1.5 py-0 rounded border border-primary/30 bg-primary/5 text-primary">
+                              <ArrowRight className="h-2.5 w-2.5" />
+                              {fk.refTable}
+                              {fk.refColumn ? `(${fk.refColumn})` : ""}
+                            </span>
+                          )}
+                          {fk?.onDelete && fk.onDelete !== "NO ACTION" && (
+                            <span className="inline-flex items-center font-mono px-1.5 py-0 rounded border border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300">
+                              ON DELETE {fk.onDelete}
+                            </span>
+                          )}
+                          {fk?.onUpdate && fk.onUpdate !== "NO ACTION" && (
+                            <span className="inline-flex items-center font-mono px-1.5 py-0 rounded border border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300">
+                              ON UPDATE {fk.onUpdate}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
-                })}
-              </div>
-            </ScrollArea>
+              })}
+            </div>
           </div>
         );
       })}
