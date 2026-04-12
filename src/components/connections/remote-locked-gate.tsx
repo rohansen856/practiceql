@@ -90,7 +90,7 @@ export function RemoteLockedGate() {
     );
   }
 
-  // Vault hasn't been created yet — no passphrase to enter, just send the
+  // Vault hasn't been created yet - no passphrase to enter, just send the
   // user to Settings to set one up.
   return (
     <div className="flex items-center justify-center h-full p-6">

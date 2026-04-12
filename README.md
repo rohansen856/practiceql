@@ -1,7 +1,7 @@
 # PracticeQL
 
 A Next.js SQL learning playground. Write, run, and learn SQL with guided
-tutorials, challenges, visual diagrams, and a schema builder — then, when
+tutorials, challenges, visual diagrams, and a schema builder - then, when
 you're ready, point it at real MySQL or PostgreSQL databases.
 
 Everything about the learning experience runs in your browser. Adding credentials
@@ -9,20 +9,20 @@ for a real database opens up an optional server-proxied execution path.
 
 ## Features
 
-- **Playground** — CodeMirror editor, resizable panels, schema + query history
+- **Playground** - CodeMirror editor, resizable panels, schema + query history
   sidebar, results panel with error/diff view.
-- **Schema Builder** — visual table creation with column types, constraints,
+- **Schema Builder** - visual table creation with column types, constraints,
   foreign keys (with auto-type-inference), `CHECK`, `COLLATE`, generated
   columns, `AUTOINCREMENT`, `WITHOUT ROWID`, and a live SQL preview.
-- **Tutorials** — structured lessons from beginner to advanced, each with
+- **Tutorials** - structured lessons from beginner to advanced, each with
   interactive SQL blocks and visual diagrams (`JoinDiagram`, `ERDiagram`,
   `QueryFlowDiagram`, `TableVisualization`).
-- **SQL Keyword Reference** — searchable catalogue of 100+ SQL keywords with
+- **SQL Keyword Reference** - searchable catalogue of 100+ SQL keywords with
   examples, dialect notes, and cross-links.
-- **Challenges** — categorized practice (WHERE, JOINs, aggregation, HAVING,
+- **Challenges** - categorized practice (WHERE, JOINs, aggregation, HAVING,
   subqueries, window functions, indexes, constraints, complex queries, etc.),
   with expected-vs-actual comparison and progressive hints.
-- **Multi-engine support** — SQLite (default, browser-local) plus optional
+- **Multi-engine support** - SQLite (default, browser-local) plus optional
   **real MySQL and PostgreSQL** connections via encrypted credential vault.
 
 ## Engines
@@ -36,17 +36,17 @@ first load. This is the engine used by all tutorials and challenges.
 ### MySQL / PostgreSQL (optional, credential-based)
 
 You can add credentials for a real MySQL or PostgreSQL database. Queries run
-through Next.js API routes using the `pg` and `mysql2` drivers — the browser
+through Next.js API routes using the `pg` and `mysql2` drivers - the browser
 never speaks SQL directly to the database.
 
-- **Storage** — Connection profiles live in IndexedDB. Passwords are encrypted
+- **Storage** - Connection profiles live in IndexedDB. Passwords are encrypted
   client-side with **AES-GCM** (key derived via PBKDF2, 210k iterations) from
   a vault passphrase you set. The plaintext password only exists in memory for
   the duration of a request.
-- **Vault lifecycle** — The vault stays unlocked for the current browser tab
+- **Vault lifecycle** - The vault stays unlocked for the current browser tab
   session. "Lock vault" clears the in-memory key; reloading the tab also
   re-locks.
-- **Engine switcher** — The header shows the active engine. Switch between
+- **Engine switcher** - The header shows the active engine. Switch between
   SQLite and any saved remote connection; if you haven't unlocked the vault,
   the switcher directs you to Settings.
 
@@ -71,7 +71,7 @@ Open [http://localhost:3000](http://localhost:3000).
 3. Click **New connection**, fill in host / port / database / username /
    password, and hit **Test connection**.
 4. Save. The connection now appears in the header's engine switcher.
-5. Select it — the Playground page will connect and show tables, schemas, and
+5. Select it - the Playground page will connect and show tables, schemas, and
    run your queries against the real database.
 
 > The Next.js server process must be able to reach the database (localhost,
@@ -83,7 +83,7 @@ Open [http://localhost:3000](http://localhost:3000).
   IndexedDB alongside the rest of the profile metadata; the AES key lives in
   memory and is derived from your passphrase at unlock time.
 - If you forget your passphrase, you must reset the vault (which wipes all
-  saved connection profiles). There is no recovery path — that's intentional.
+  saved connection profiles). There is no recovery path - that's intentional.
 - API routes (`/api/db/postgres/*`, `/api/db/mysql/*`) accept the connection
   payload per-request and do not keep a pool. They are **not** authenticated;
   do not expose the Next.js server to the public internet with remote

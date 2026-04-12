@@ -283,7 +283,9 @@ export function ColumnEditor({
                   </Label>
                   <Select
                     value={column.collate || "none"}
-                    onValueChange={(v) => update("collate", v === "none" ? "" : v)}
+                    onValueChange={(v) =>
+                      update("collate", !v || v === "none" ? "" : v)
+                    }
                   >
                     <SelectTrigger
                       id={`col-${index}`}
@@ -367,7 +369,7 @@ export function ColumnEditor({
                     <Select
                       value={column.referencesTable || "none"}
                       onValueChange={(v) =>
-                        update("referencesTable", v === "none" ? "" : v)
+                        update("referencesTable", !v || v === "none" ? "" : v)
                       }
                     >
                       <SelectTrigger className="h-8 text-xs font-mono">
@@ -407,7 +409,7 @@ export function ColumnEditor({
                       onValueChange={(v) =>
                         update(
                           "onDelete",
-                          (v === "none" ? "" : v) as ColumnDef["onDelete"],
+                          (!v || v === "none" ? "" : v) as ColumnDef["onDelete"],
                         )
                       }
                     >
@@ -431,7 +433,7 @@ export function ColumnEditor({
                       onValueChange={(v) =>
                         update(
                           "onUpdate",
-                          (v === "none" ? "" : v) as ColumnDef["onUpdate"],
+                          (!v || v === "none" ? "" : v) as ColumnDef["onUpdate"],
                         )
                       }
                     >

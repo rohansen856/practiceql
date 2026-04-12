@@ -3,7 +3,7 @@ import { ECOMMERCE_SEED, EMPLOYEES_SEED } from "../seed-data";
 
 // Most of these challenges verify the index via `sqlite_master`, a catalog
 // table that only exists in SQLite. The `CREATE INDEX` syntax itself is
-// portable, but the verification step is not — so we tag them SQLite-only.
+// portable, but the verification step is not - so we tag them SQLite-only.
 // A partial-index challenge is tagged SQLite+PostgreSQL since both support
 // the `WHERE` clause on CREATE INDEX (MySQL does not).
 export const indexesChallenges: Challenge[] = [
@@ -94,7 +94,9 @@ export const indexesChallenges: Challenge[] = [
     category: "indexes",
     difficulty: "beginner",
     dialects: ["sqlite"],
-    seedSQL: ["EMPLOYEES_SEED", "\nCREATE INDEX idx_old ON employees(last_name);\n"],
+    seedSQL:
+      EMPLOYEES_SEED +
+      "\nCREATE INDEX idx_old ON employees(last_name);\n",
     expectedColumns: ["index_count"],
     expectedOutput: [
       [0],

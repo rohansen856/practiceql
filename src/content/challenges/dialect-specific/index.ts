@@ -11,7 +11,7 @@ export const dialectSpecificChallenges: Challenge[] = [
     id: "dia-01",
     title: "Introspect a Table (SQLite PRAGMA)",
     description:
-      "Use SQLite's virtual table `pragma_table_info('employees')` to list every column of the `employees` table. Return `name`, `type`, `notnull`, `pk` (in that column order), ordered by the column index. `PRAGMA` is SQLite-specific — PostgreSQL uses `information_schema.columns` and MySQL uses `SHOW COLUMNS`.",
+      "Use SQLite's virtual table `pragma_table_info('employees')` to list every column of the `employees` table. Return `name`, `type`, `notnull`, `pk` (in that column order), ordered by the column index. `PRAGMA` is SQLite-specific - PostgreSQL uses `information_schema.columns` and MySQL uses `SHOW COLUMNS`.",
     category: "dialect-specific",
     difficulty: "beginner",
     dialects: ["sqlite"],
@@ -29,7 +29,7 @@ export const dialectSpecificChallenges: Challenge[] = [
     ],
     hints: [
       "Query the `pragma_table_info('<table>')` virtual table.",
-      "The column index is stored in `cid` — use `ORDER BY cid`.",
+      "The column index is stored in `cid` - use `ORDER BY cid`.",
       "`notnull` is quoted because it is a reserved keyword; use double quotes.",
       `SELECT name, type, "notnull", pk FROM pragma_table_info('employees') ORDER BY cid;`,
     ],
@@ -64,7 +64,7 @@ export const dialectSpecificChallenges: Challenge[] = [
     id: "dia-03",
     title: "RETURNING Clause on UPDATE",
     description:
-      "Give every employee with `id` in `(3, 6, 12)` a raise to exactly **$100,000**, and use the `RETURNING` clause to emit the rows that were updated in the **same statement**. Return `id`, `first_name`, `salary`. `RETURNING` is native to **PostgreSQL** and **SQLite 3.35+**. MySQL has no equivalent — you would need a separate SELECT.",
+      "Give every employee with `id` in `(3, 6, 12)` a raise to exactly **$100,000**, and use the `RETURNING` clause to emit the rows that were updated in the **same statement**. Return `id`, `first_name`, `salary`. `RETURNING` is native to **PostgreSQL** and **SQLite 3.35+**. MySQL has no equivalent - you would need a separate SELECT.",
     category: "dialect-specific",
     difficulty: "intermediate",
     dialects: ["sqlite", "postgresql"],
@@ -125,7 +125,7 @@ export const dialectSpecificChallenges: Challenge[] = [
       ["Sales", "David, Grace, Karen"],
     ],
     hints: [
-      "`GROUP_CONCAT(expr, separator)` — second arg is the delimiter (default comma).",
+      "`GROUP_CONCAT(expr, separator)` - second arg is the delimiter (default comma).",
       "Join `departments` and `employees`, GROUP BY department.",
       "Order of names inside each group depends on the engine; in SQLite it follows row order by primary key.",
     ],
@@ -135,7 +135,7 @@ export const dialectSpecificChallenges: Challenge[] = [
   },
   {
     id: "dia-06",
-    title: "Recursive CTE — Manager Depth",
+    title: "Recursive CTE - Manager Depth",
     description:
       "Using a **recursive CTE**, compute each employee's reporting depth from the top of the org (employees with `manager_id IS NULL` are depth `0`). Return `id`, `first_name`, `depth`. Recursive CTEs are supported by **SQLite 3.8+**, **PostgreSQL 8.4+**, and **MySQL 8.0+** with identical `WITH RECURSIVE` syntax.",
     category: "dialect-specific",

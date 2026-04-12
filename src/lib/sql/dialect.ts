@@ -68,7 +68,7 @@ export function defaultForeignKeyType(dialect: SqlDialect): string {
   return "INTEGER";
 }
 
-/** Types considered "integer-like" for the current dialect — used to gate
+/** Types considered "integer-like" for the current dialect - used to gate
  * auto-increment UI. */
 export function isIntegerType(type: string, dialect: SqlDialect): boolean {
   const t = type.trim().toUpperCase();

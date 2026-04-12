@@ -30,7 +30,10 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt,
+      // Cast to BufferSource: lib.dom widened Uint8Array<ArrayBufferLike> so it
+      // no longer matches BufferSource structurally even though it is one at
+      // runtime.
+      salt: salt as BufferSource,
       iterations: PBKDF2_ITERATIONS,
       hash: "SHA-256",
     },
@@ -70,7 +73,11 @@ export async function encrypt(key: CryptoKey, plaintext: string): Promise<Encryp
 export async function decrypt(key: CryptoKey, blob: EncryptedBlob): Promise<string> {
   const iv = fromBase64(blob.iv);
   const data = fromBase64(blob.ciphertext);
-  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: iv as BufferSource },
+    key,
+    data as BufferSource,
+  );
   return new TextDecoder().decode(plain);
 }
 

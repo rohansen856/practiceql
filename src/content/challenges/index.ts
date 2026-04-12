@@ -76,7 +76,7 @@ export const challengeSets: ChallengeSet[] = [
   {
     category: "dialect-specific",
     label: "Dialect-Specific",
-    description: "UPSERT, RETURNING, JSON, PRAGMA, GROUP_CONCAT — patterns that vary by engine",
+    description: "UPSERT, RETURNING, JSON, PRAGMA, GROUP_CONCAT - patterns that vary by engine",
     challenges: dialectSpecificChallenges,
   },
 ];
