@@ -127,6 +127,7 @@ export default function PlaygroundPage() {
           <ResizablePanel defaultSize={45} minSize={15} id="editor">
             <div className="flex flex-col h-full">
               <SQLEditorToolbar
+                sql={sql}
                 onExecute={() => handleExecute()}
                 onClear={() => setSQL("")}
                 onToggleHistory={() => setShowHistory(!showHistory)}

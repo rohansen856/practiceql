@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useActiveEngine } from "@/hooks/use-active-engine";
 import { useDBStore } from "@/stores/db-store";
 import { useConnectionStore } from "@/stores/connection-store";
@@ -19,7 +20,15 @@ import {
 } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Database, Loader2, Play, Server, Table2 } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Database,
+  Loader2,
+  Play,
+  Server,
+  Table2,
+} from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
 import { KIND_LABELS } from "@/types/connection";
 import {
@@ -68,6 +77,34 @@ export default function SchemaBuilderPage() {
   const handleEditorExecute = useCallback(() => {
     if (sql.trim()) handleExecute(sql);
   }, [sql, handleExecute]);
+
+  const [copied, setCopied] = useState(false);
+  const handleCopySql = useCallback(async () => {
+    const text = sql.trim();
+    if (!text) {
+      toast.info("Nothing to copy");
+      return;
+    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(sql);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = sql;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+      setCopied(true);
+      toast.success("Query copied");
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Failed to copy");
+    }
+  }, [sql]);
 
   if (remoteLocked) {
     return <RemoteLockedGate />;
@@ -191,6 +228,21 @@ export default function SchemaBuilderPage() {
                 <span className="text-xs font-medium text-muted-foreground flex-1">
                   SQL Editor
                 </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  onClick={handleCopySql}
+                  disabled={!sql.trim()}
+                  title="Copy query"
+                  aria-label="Copy query"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </Button>
                 <Button
                   size="sm"
                   className="h-7 gap-1.5 text-xs"
