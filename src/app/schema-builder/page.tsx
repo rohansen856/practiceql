@@ -36,11 +36,12 @@ import {
   KNOWN_DEFAULT_SNIPPETS,
 } from "@/lib/sql/dialect";
 
-const DB_NAME = "schema-builder";
-
+// Share the same local database between Schema Builder and Playground so
+// tables created here are immediately queryable from the Playground. The
+// default engine name ("playground") is owned by `useActiveEngine`.
 export default function SchemaBuilderPage() {
   const { executeSQL, refreshTables, mode, dialect, remoteLocked } =
-    useActiveEngine(DB_NAME);
+    useActiveEngine();
   const tables = useDBStore((s) => s.tables);
   const schemas = useDBStore((s) => s.schemas);
   const isEngineReady = useDBStore((s) => s.isEngineReady);
