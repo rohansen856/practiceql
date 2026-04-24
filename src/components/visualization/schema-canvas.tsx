@@ -11,6 +11,12 @@ import {
 } from "@/lib/visualization/erd-layout";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import {
+  monoFont,
+  resolveCanvasColors,
+  sansFont,
+  type CanvasThemeColors,
+} from "@/lib/visualization/theme";
 
 interface SchemaCanvasProps {
   tables: TableInfo[];
@@ -56,21 +62,9 @@ export function SchemaCanvas({
   );
   const [viewport, setViewport] = useState({ x: 24, y: 24, scale: 1 });
 
-  // Resolve theme colors from the document so canvas matches light/dark.
-  const readThemeColors = useCallback(() => {
-    const cs = getComputedStyle(document.documentElement);
-    const fallback = (v: string, def: string) => (v.trim() ? v : def);
-    return {
-      bg: fallback(cs.getPropertyValue("--background"), "#0b0b0f"),
-      card: fallback(cs.getPropertyValue("--card"), "#12121a"),
-      border: fallback(cs.getPropertyValue("--border"), "#2a2a3a"),
-      muted: fallback(cs.getPropertyValue("--muted-foreground"), "#7a7a8a"),
-      fg: fallback(cs.getPropertyValue("--foreground"), "#e9e9f1"),
-      primary: fallback(cs.getPropertyValue("--primary"), "#10b981"),
-      amber: "#f59e0b",
-      violet: "#a78bfa",
-    };
-  }, []);
+  // Theme colors live in a shared helper so every visualization canvas stays
+  // in sync with the DOM.
+  const readThemeColors = useCallback(() => resolveCanvasColors(), []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -319,17 +313,9 @@ export function SchemaCanvas({
 function drawTables(
   ctx: CanvasRenderingContext2D,
   nodes: ErdNode[],
-  colors: ReturnType<() => {
-    card: string;
-    border: string;
-    fg: string;
-    muted: string;
-    primary: string;
-    amber: string;
-    violet: string;
-  }>,
+  colors: CanvasThemeColors,
 ) {
-  ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = sansFont(600, 12);
   ctx.textBaseline = "middle";
 
   for (const n of nodes) {
@@ -370,19 +356,19 @@ function drawTables(
     // Table name. Compute how much horizontal room the "N cols" chip on the
     // right is going to consume so we can truncate a long name with an
     // ellipsis rather than letting it paint over the chip.
-    ctx.font = "500 10px ui-monospace, SFMono-Regular, monospace";
+    ctx.font = monoFont(500, 10);
     const colLabel = `${n.columns.length} col${n.columns.length === 1 ? "" : "s"}`;
     const colLabelWidth = ctx.measureText(colLabel).width;
     const nameMaxWidth = n.width - 24 - colLabelWidth - 10;
 
     ctx.fillStyle = colors.fg;
-    ctx.font = "700 13px ui-sans-serif, system-ui, sans-serif";
+    ctx.font = sansFont(700, 13);
     ctx.textAlign = "left";
     const displayName = fitText(ctx, n.name, nameMaxWidth);
     ctx.fillText(displayName, n.x + 12, n.y + ERD_CONSTANTS.HEADER_HEIGHT / 2);
 
     ctx.fillStyle = colors.muted;
-    ctx.font = "500 10px ui-monospace, SFMono-Regular, monospace";
+    ctx.font = monoFont(500, 10);
     ctx.fillText(
       colLabel,
       n.x + n.width - colLabelWidth - 12,
@@ -390,7 +376,7 @@ function drawTables(
     );
 
     // columns
-    ctx.font = "500 11px ui-monospace, SFMono-Regular, monospace";
+    ctx.font = monoFont(500, 11);
     for (let i = 0; i < n.columns.length; i++) {
       const col = n.columns[i];
       const y =
@@ -464,7 +450,7 @@ function drawBadge(
   roundRect(ctx, x, y - h / 2, w, h, 4);
   ctx.stroke();
   ctx.fillStyle = color;
-  ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif";
+  ctx.font = sansFont(700, 9);
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(label, x + w / 2, y + 0.5);
@@ -475,7 +461,7 @@ function drawEdges(
   ctx: CanvasRenderingContext2D,
   nodes: ErdNode[],
   edges: ErdEdge[],
-  colors: { primary: string; muted: string },
+  colors: CanvasThemeColors,
 ) {
   const byName = new Map(nodes.map((n) => [n.name, n]));
   for (const e of edges) {

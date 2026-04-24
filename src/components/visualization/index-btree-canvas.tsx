@@ -21,6 +21,11 @@ import {
   BTreeLayout,
 } from "@/lib/visualization/btree";
 import { quoteIdent, type SqlDialect } from "@/lib/sql/dialect";
+import {
+  monoFont,
+  resolveCanvasColors,
+  sansFont,
+} from "@/lib/visualization/theme";
 
 interface IndexBTreeCanvasProps {
   tables: TableInfo[];
@@ -138,19 +143,7 @@ export function IndexBTreeCanvas({
     });
   }, [keys, order, isNumeric]);
 
-  const readThemeColors = useCallback(() => {
-    const cs = getComputedStyle(document.documentElement);
-    const f = (v: string, d: string) => (v.trim() ? v : d);
-    return {
-      bg: f(cs.getPropertyValue("--background"), "#0b0b0f"),
-      card: f(cs.getPropertyValue("--card"), "#12121a"),
-      border: f(cs.getPropertyValue("--border"), "#2a2a3a"),
-      fg: f(cs.getPropertyValue("--foreground"), "#e9e9f1"),
-      muted: f(cs.getPropertyValue("--muted-foreground"), "#8a8a99"),
-      primary: f(cs.getPropertyValue("--primary"), "#10b981"),
-      violet: "#a78bfa",
-    };
-  }, []);
+  const readThemeColors = useCallback(() => resolveCanvasColors(), []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -175,7 +168,7 @@ export function IndexBTreeCanvas({
 
     if (!layout) {
       ctx.fillStyle = colors.muted;
-      ctx.font = "500 12px ui-sans-serif, system-ui";
+      ctx.font = sansFont(500, 12);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
@@ -217,7 +210,7 @@ export function IndexBTreeCanvas({
     ctx.globalAlpha = 1;
 
     // nodes
-    ctx.font = "600 12px ui-monospace, SFMono-Regular, monospace";
+    ctx.font = monoFont(600, 12);
     ctx.textBaseline = "middle";
     for (const n of layout.nodes) {
       const { node } = n;
@@ -260,7 +253,7 @@ export function IndexBTreeCanvas({
 
     // legend
     ctx.fillStyle = colors.muted;
-    ctx.font = "500 11px ui-sans-serif";
+    ctx.font = sansFont(500, 11);
     ctx.textAlign = "left";
     ctx.fillText(
       `order=${order} · ${layout.nodes.length} nodes · ${keys.length} keys`,

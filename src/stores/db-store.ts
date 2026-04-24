@@ -17,6 +17,18 @@ interface DBState {
   setSchema: (table: string, columns: ColumnInfo[]) => void;
   setForeignKeys: (table: string, fks: ForeignKeyInfo[]) => void;
   setRowCount: (table: string, count: number) => void;
+  /**
+   * Atomically replace the full catalog (tables + per-table schemas, foreign
+   * keys, and row counts) so that switching from one connection to another
+   * cannot leak stale entries across databases.
+   */
+  replaceCatalog: (catalog: {
+    tables: TableInfo[];
+    schemas: Record<string, ColumnInfo[]>;
+    foreignKeys: Record<string, ForeignKeyInfo[]>;
+    rowCounts: Record<string, number>;
+  }) => void;
+  clearCatalog: () => void;
   setResults: (results: QueryResult[]) => void;
   setError: (error: string | null) => void;
   setIsExecuting: (executing: boolean) => void;
@@ -49,6 +61,10 @@ export const useDBStore = create<DBState>((set) => ({
     set((state) => ({
       rowCounts: { ...state.rowCounts, [table]: count },
     })),
+  replaceCatalog: ({ tables, schemas, foreignKeys, rowCounts }) =>
+    set({ tables, schemas, foreignKeys, rowCounts }),
+  clearCatalog: () =>
+    set({ tables: [], schemas: {}, foreignKeys: {}, rowCounts: {} }),
   setResults: (results) => set({ lastResults: results, lastError: null }),
   setError: (error) => set({ lastError: error, lastResults: [] }),
   setIsExecuting: (executing) => set({ isExecuting: executing }),

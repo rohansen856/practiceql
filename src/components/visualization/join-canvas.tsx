@@ -14,6 +14,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, Play, XCircle } from "lucide-react";
 import { ColumnInfo, ForeignKeyInfo, QueryResult, TableInfo } from "@/types/sql";
 import { quoteIdent, type SqlDialect } from "@/lib/sql/dialect";
+import {
+  monoFont,
+  resolveCanvasColors,
+  sansFont,
+} from "@/lib/visualization/theme";
 
 interface JoinCanvasProps {
   tables: TableInfo[];
@@ -148,20 +153,7 @@ export function JoinCanvas({
     void loadRows();
   }, [loadRows]);
 
-  const readThemeColors = useCallback(() => {
-    const cs = getComputedStyle(document.documentElement);
-    const f = (v: string, d: string) => (v.trim() ? v : d);
-    return {
-      bg: f(cs.getPropertyValue("--background"), "#0b0b0f"),
-      card: f(cs.getPropertyValue("--card"), "#12121a"),
-      border: f(cs.getPropertyValue("--border"), "#2a2a3a"),
-      fg: f(cs.getPropertyValue("--foreground"), "#e9e9f1"),
-      muted: f(cs.getPropertyValue("--muted-foreground"), "#8a8a99"),
-      primary: f(cs.getPropertyValue("--primary"), "#10b981"),
-      amber: "#f59e0b",
-      slate: "#64748b",
-    };
-  }, []);
+  const readThemeColors = useCallback(() => resolveCanvasColors(), []);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -186,7 +178,7 @@ export function JoinCanvas({
       ctx.fillStyle = colors.muted;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = "500 12px ui-sans-serif";
+      ctx.font = sansFont(500, 12);
       ctx.fillText(
         "Add foreign keys between tables to visualise joins.",
         w / 2,
@@ -204,14 +196,14 @@ export function JoinCanvas({
 
     // headers
     ctx.fillStyle = colors.fg;
-    ctx.font = "700 13px ui-sans-serif";
+    ctx.font = sansFont(700, 13);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.fillText(selectedCandidate.fromTable, leftX, 24);
     ctx.fillText(selectedCandidate.toTable, rightX, 24);
 
     ctx.fillStyle = colors.muted;
-    ctx.font = "500 11px ui-monospace";
+    ctx.font = monoFont(500, 11);
     ctx.fillText(
       `${selectedCandidate.fromCol} (join key)`,
       leftX,
@@ -270,7 +262,7 @@ export function JoinCanvas({
       ctx.stroke();
 
       ctx.fillStyle = colors.fg;
-      ctx.font = "600 11px ui-monospace";
+      ctx.font = monoFont(600, 11);
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillText(
@@ -280,7 +272,7 @@ export function JoinCanvas({
       );
 
       ctx.fillStyle = colors.muted;
-      ctx.font = "500 11px ui-sans-serif";
+      ctx.font = sansFont(500, 11);
       ctx.textAlign = "right";
       const label = entry.label.length > 22 ? entry.label.slice(0, 22) + "…" : entry.label;
       ctx.fillText(label, x + colWidth - 10, y + (rowHeight - 4) / 2);
@@ -331,7 +323,7 @@ export function JoinCanvas({
               rightRows.filter((_, i) => !rightMatched.has(i)).length;
 
     ctx.fillStyle = colors.muted;
-    ctx.font = "500 11px ui-sans-serif";
+    ctx.font = sansFont(500, 11);
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
     ctx.fillText(

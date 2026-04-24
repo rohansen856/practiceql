@@ -7,7 +7,7 @@ import { useDBStore } from "@/stores/db-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { executeRemote, fetchRemoteSchema } from "@/lib/db/remote-engine";
 import { saveQuery } from "@/lib/db/persistence";
-import { TableInfo } from "@/types/sql";
+import { ColumnInfo, ForeignKeyInfo, TableInfo } from "@/types/sql";
 import type { SqlDialect } from "@/lib/sql/dialect";
 
 /**
@@ -30,10 +30,8 @@ export function useActiveEngine(sqliteDbName = "playground") {
       : "postgresql"
     : "sqlite";
 
-  const setTables = useDBStore((s) => s.setTables);
-  const setSchema = useDBStore((s) => s.setSchema);
-  const setForeignKeys = useDBStore((s) => s.setForeignKeys);
-  const setRowCount = useDBStore((s) => s.setRowCount);
+  const replaceCatalog = useDBStore((s) => s.replaceCatalog);
+  const clearCatalog = useDBStore((s) => s.clearCatalog);
   const setResults = useDBStore((s) => s.setResults);
   const setError = useDBStore((s) => s.setError);
   const setIsExecuting = useDBStore((s) => s.setIsExecuting);
@@ -55,28 +53,25 @@ export function useActiveEngine(sqliteDbName = "playground") {
         name: t.name,
         type: t.type,
       }));
-      setTables(tables);
+      // Replace the entire catalog atomically so stale entries from a
+      // previously-active connection (local SQLite or a different remote) can
+      // never leak into the schema/foreign-key views.
+      const schemas: Record<string, ColumnInfo[]> = {};
+      const foreignKeys: Record<string, ForeignKeyInfo[]> = {};
+      const rowCounts: Record<string, number> = {};
       for (const t of schema.tables) {
-        setSchema(t.name, t.columns);
-        setForeignKeys(t.name, t.foreignKeys);
-        setRowCount(t.name, t.rowCount);
+        schemas[t.name] = t.columns;
+        foreignKeys[t.name] = t.foreignKeys;
+        rowCounts[t.name] = t.rowCount;
       }
+      replaceCatalog({ tables, schemas, foreignKeys, rowCounts });
       setIsEngineReady(true);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message);
       setIsEngineReady(false);
     }
-  }, [
-    activeId,
-    getPayload,
-    setTables,
-    setSchema,
-    setForeignKeys,
-    setRowCount,
-    setIsEngineReady,
-    setError,
-  ]);
+  }, [activeId, getPayload, replaceCatalog, setIsEngineReady, setError]);
 
   useEffect(() => {
     if (!remoteActive) {
@@ -86,10 +81,19 @@ export function useActiveEngine(sqliteDbName = "playground") {
     if (lastActiveRef.current === activeId) return;
     lastActiveRef.current = activeId;
     setIsEngineReady(false);
-    setTables([]);
+    // Drop the previous catalog so remote tables never mix with entries from
+    // a different connection (local or another remote).
+    clearCatalog();
     setResults([]);
     refreshRemote();
-  }, [remoteActive, activeId, refreshRemote, setIsEngineReady, setTables, setResults]);
+  }, [
+    remoteActive,
+    activeId,
+    refreshRemote,
+    setIsEngineReady,
+    clearCatalog,
+    setResults,
+  ]);
 
   const executeRemoteSql = useCallback(
     async (sql: string) => {

@@ -74,7 +74,7 @@ export function AppSidebar() {
         sidebarOpen ? "w-56" : "w-14",
       )}
     >
-      <div className="flex items-center gap-2 p-3 border-b border-sidebar-border">
+      <div className="flex items-center gap-2 h-12 px-3 border-b border-sidebar-border shrink-0">
         {sidebarOpen && (
           <Link href="/" className="flex items-center gap-2 flex-1 min-w-0">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 ring-1 ring-primary/25">

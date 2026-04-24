@@ -5,6 +5,7 @@ import { getEngine, execAndPersist } from "@/lib/db/db-manager";
 import { useDBStore } from "@/stores/db-store";
 import { useEditorStore } from "@/stores/editor-store";
 import { saveQuery } from "@/lib/db/persistence";
+import { ColumnInfo, ForeignKeyInfo } from "@/types/sql";
 
 interface UseSqlEngineOptions {
   enabled?: boolean;
@@ -16,10 +17,8 @@ export function useSqlEngine(
 ) {
   const enabled = options.enabled ?? true;
   const currentDB = useDBStore((s) => s.currentDB);
-  const setTables = useDBStore((s) => s.setTables);
-  const setSchema = useDBStore((s) => s.setSchema);
-  const setForeignKeys = useDBStore((s) => s.setForeignKeys);
-  const setRowCount = useDBStore((s) => s.setRowCount);
+  const replaceCatalog = useDBStore((s) => s.replaceCatalog);
+  const clearCatalog = useDBStore((s) => s.clearCatalog);
   const setResults = useDBStore((s) => s.setResults);
   const setError = useDBStore((s) => s.setError);
   const setIsExecuting = useDBStore((s) => s.setIsExecuting);
@@ -32,35 +31,44 @@ export function useSqlEngine(
     if (!enabled) return;
     let cancelled = false;
     setIsEngineReady(false);
+    // The previous engine's catalog (e.g. from a remote connection the user
+    // just turned off) must be cleared before we start loading SQLite tables.
+    clearCatalog();
 
     getEngine(name).then((engine) => {
       if (cancelled) return;
-      setIsEngineReady(true);
       const tables = engine.getTables();
-      setTables(tables);
+      const schemas: Record<string, ColumnInfo[]> = {};
+      const foreignKeys: Record<string, ForeignKeyInfo[]> = {};
+      const rowCounts: Record<string, number> = {};
       for (const t of tables) {
-        setSchema(t.name, engine.getSchema(t.name));
-        setForeignKeys(t.name, engine.getForeignKeys(t.name));
-        setRowCount(t.name, engine.getRowCount(t.name));
+        schemas[t.name] = engine.getSchema(t.name);
+        foreignKeys[t.name] = engine.getForeignKeys(t.name);
+        rowCounts[t.name] = engine.getRowCount(t.name);
       }
+      replaceCatalog({ tables, schemas, foreignKeys, rowCounts });
+      setIsEngineReady(true);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [enabled, name, setIsEngineReady, setTables, setSchema, setForeignKeys, setRowCount]);
+  }, [enabled, name, setIsEngineReady, replaceCatalog, clearCatalog]);
 
   const refreshTables = useCallback(async () => {
     if (!enabled) return;
     const engine = await getEngine(name);
     const tables = engine.getTables();
-    setTables(tables);
+    const schemas: Record<string, ColumnInfo[]> = {};
+    const foreignKeys: Record<string, ForeignKeyInfo[]> = {};
+    const rowCounts: Record<string, number> = {};
     for (const t of tables) {
-      setSchema(t.name, engine.getSchema(t.name));
-      setForeignKeys(t.name, engine.getForeignKeys(t.name));
-      setRowCount(t.name, engine.getRowCount(t.name));
+      schemas[t.name] = engine.getSchema(t.name);
+      foreignKeys[t.name] = engine.getForeignKeys(t.name);
+      rowCounts[t.name] = engine.getRowCount(t.name);
     }
-  }, [enabled, name, setTables, setSchema, setForeignKeys, setRowCount]);
+    replaceCatalog({ tables, schemas, foreignKeys, rowCounts });
+  }, [enabled, name, replaceCatalog]);
 
   const executeSQL = useCallback(
     async (sql: string) => {
