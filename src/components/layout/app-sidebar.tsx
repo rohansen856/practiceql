@@ -9,6 +9,7 @@ import {
   Database,
   Settings,
   Home,
+  Network,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -30,6 +31,18 @@ const NAV_ITEMS = [
     tint: "text-emerald-600 dark:text-emerald-400",
   },
   {
+    href: "/schema-builder",
+    icon: Database,
+    label: "Schema Builder",
+    tint: "text-violet-600 dark:text-violet-400",
+  },
+  {
+    href: "/visualization",
+    icon: Network,
+    label: "Visualization",
+    tint: "text-fuchsia-600 dark:text-fuchsia-400",
+  },
+  {
     href: "/tutorials",
     icon: BookOpen,
     label: "Tutorials",
@@ -40,12 +53,6 @@ const NAV_ITEMS = [
     icon: Trophy,
     label: "Challenges",
     tint: "text-amber-600 dark:text-amber-400",
-  },
-  {
-    href: "/schema-builder",
-    icon: Database,
-    label: "Schema Builder",
-    tint: "text-violet-600 dark:text-violet-400",
   },
   {
     href: "/settings",
