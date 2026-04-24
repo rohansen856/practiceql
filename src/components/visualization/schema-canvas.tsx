@@ -341,37 +341,51 @@ function drawTables(
     ctx.fill();
     ctx.stroke();
 
-    // header: translucent band. Using globalAlpha avoids depending on the
-    // primary color being expressible with a hex-alpha suffix (shadcn tokens
-    // are `lab(...)` which can't be concatenated with an alpha channel).
+    // Header: subtle translucent tint so the table name reads clearly on top.
+    // We use `globalAlpha` rather than a hex-alpha suffix because shadcn
+    // theme colours are `lab(...)` values and cannot be concatenated with an
+    // alpha channel.
     ctx.save();
     roundRect(ctx, n.x, n.y, n.width, ERD_CONSTANTS.HEADER_HEIGHT, 10);
     ctx.clip();
-    ctx.globalAlpha = 0.22;
+    ctx.globalAlpha = 0.1;
     ctx.fillStyle = colors.violet;
-    ctx.fillRect(n.x, n.y, n.width, ERD_CONSTANTS.HEADER_HEIGHT * 0.55);
-    ctx.globalAlpha = 0.15;
+    ctx.fillRect(n.x, n.y, n.width, ERD_CONSTANTS.HEADER_HEIGHT);
+    ctx.globalAlpha = 0.08;
     ctx.fillStyle = colors.primary;
-    ctx.fillRect(
-      n.x,
-      n.y + ERD_CONSTANTS.HEADER_HEIGHT * 0.45,
-      n.width,
-      ERD_CONSTANTS.HEADER_HEIGHT * 0.55,
-    );
+    ctx.fillRect(n.x, n.y, n.width, ERD_CONSTANTS.HEADER_HEIGHT);
     ctx.globalAlpha = 1;
     ctx.restore();
 
+    // Crisp divider between header and body so the tinted band doesn't
+    // visually bleed into the first column row.
+    ctx.strokeStyle = colors.border;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(n.x, n.y + ERD_CONSTANTS.HEADER_HEIGHT);
+    ctx.lineTo(n.x + n.width, n.y + ERD_CONSTANTS.HEADER_HEIGHT);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Table name. Compute how much horizontal room the "N cols" chip on the
+    // right is going to consume so we can truncate a long name with an
+    // ellipsis rather than letting it paint over the chip.
+    ctx.font = "500 10px ui-monospace, SFMono-Regular, monospace";
+    const colLabel = `${n.columns.length} col${n.columns.length === 1 ? "" : "s"}`;
+    const colLabelWidth = ctx.measureText(colLabel).width;
+    const nameMaxWidth = n.width - 24 - colLabelWidth - 10;
+
     ctx.fillStyle = colors.fg;
+    ctx.font = "700 13px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText(n.name, n.x + 12, n.y + ERD_CONSTANTS.HEADER_HEIGHT / 2);
+    const displayName = fitText(ctx, n.name, nameMaxWidth);
+    ctx.fillText(displayName, n.x + 12, n.y + ERD_CONSTANTS.HEADER_HEIGHT / 2);
 
     ctx.fillStyle = colors.muted;
     ctx.font = "500 10px ui-monospace, SFMono-Regular, monospace";
-    const colLabel = `${n.columns.length} cols`;
-    const tw = ctx.measureText(colLabel).width;
     ctx.fillText(
       colLabel,
-      n.x + n.width - tw - 12,
+      n.x + n.width - colLabelWidth - 12,
       n.y + ERD_CONSTANTS.HEADER_HEIGHT / 2,
     );
 
@@ -408,14 +422,24 @@ function drawTables(
         drawBadge(ctx, badgeX, y, "", colors.muted);
       }
 
+      // Reserve ~40% of the row for the type label on the right, then fit
+      // the column name into whatever remains so nothing overflows the card.
+      const nameStartX = badgeX + 28;
+      const typeRightX = n.x + n.width - 10;
+      const rawType = col.type || "ANY";
+      const typeWidth = Math.min(
+        ctx.measureText(rawType).width,
+        (n.width - 28 - 20) * 0.5,
+      );
+      const nameWidth = typeRightX - typeWidth - 12 - nameStartX;
+
       ctx.fillStyle = colors.fg;
       ctx.textAlign = "left";
-      ctx.fillText(col.name, badgeX + 28, y);
+      ctx.fillText(fitText(ctx, col.name, nameWidth), nameStartX, y);
 
       ctx.fillStyle = colors.muted;
       ctx.textAlign = "right";
-      const type = col.type || "ANY";
-      ctx.fillText(type, n.x + n.width - 10, y);
+      ctx.fillText(fitText(ctx, rawType, typeWidth), typeRightX, y);
     }
   }
 }
@@ -526,4 +550,18 @@ function roundRect(
   ctx.arcTo(x, y + h, x, y, rr);
   ctx.arcTo(x, y, x + w, y, rr);
   ctx.closePath();
+}
+
+function fitText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string {
+  if (maxWidth <= 0) return "";
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let t = text;
+  while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) {
+    t = t.slice(0, -1);
+  }
+  return `${t}…`;
 }

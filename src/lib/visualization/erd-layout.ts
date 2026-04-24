@@ -24,10 +24,10 @@ export interface ErdEdge {
   toCol: string;
 }
 
-const CARD_WIDTH = 220;
-const ROW_HEIGHT = 20;
-const HEADER_HEIGHT = 28;
-const COL_PADDING = 8;
+const CARD_WIDTH = 224;
+const ROW_HEIGHT = 22;
+const HEADER_HEIGHT = 34;
+const COL_PADDING = 10;
 
 export function cardHeight(t: ErdTable): number {
   return HEADER_HEIGHT + t.columns.length * ROW_HEIGHT + COL_PADDING;
