@@ -12,6 +12,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   challenges: "Challenges",
   "schema-builder": "Schema Builder",
   visualization: "Visualization",
+  developers: "Developers",
   settings: "Settings",
 };
 

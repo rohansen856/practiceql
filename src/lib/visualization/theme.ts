@@ -18,7 +18,7 @@ let cached: ResolvedFonts | null = null;
 
 /**
  * Resolve the current app font families from the document root. Cached for
- * the lifetime of the page — the Geist CSS variable doesn't change.
+ * the lifetime of the page - the Geist CSS variable doesn't change.
  */
 export function resolveFonts(): ResolvedFonts {
   if (cached) return cached;

@@ -10,6 +10,7 @@ import {
   Settings,
   Home,
   Network,
+  Code2,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -53,6 +54,12 @@ const NAV_ITEMS = [
     icon: Trophy,
     label: "Challenges",
     tint: "text-amber-600 dark:text-amber-400",
+  },
+  {
+    href: "/developers",
+    icon: Code2,
+    label: "Developers",
+    tint: "text-rose-600 dark:text-rose-400",
   },
   {
     href: "/settings",
