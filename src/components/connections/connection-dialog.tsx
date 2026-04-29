@@ -276,7 +276,7 @@ export function ConnectionDialog({
             {editing && urlParse.status === "idle" && (
               <p className="flex items-start gap-1 text-[11px] text-muted-foreground">
                 <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                Editing an existing connection — pasting a URL will overwrite
+                Editing an existing connection - pasting a URL will overwrite
                 the fields below (except the name).
               </p>
             )}

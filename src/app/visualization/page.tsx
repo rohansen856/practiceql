@@ -162,7 +162,7 @@ function EmptyTables() {
         <Database className="h-6 w-6 opacity-50" />
         <p className="font-medium">No tables in this database yet</p>
         <p className="text-xs max-w-sm">
-          Head to the Schema Builder or Playground to create tables — they will
+          Head to the Schema Builder or Playground to create tables - they will
           appear here as an interactive ERD, index tree, and join preview.
         </p>
       </div>
