@@ -26,6 +26,7 @@ import {
   Hash,
   Settings2,
   Link2,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -42,6 +43,12 @@ export interface ColumnDef {
   primaryKey: boolean;
   notNull: boolean;
   unique: boolean;
+  /**
+   * Add a non-unique secondary index on this column. PRIMARY KEY and UNIQUE
+   * columns are already indexed by the engine, so this flag is ignored when
+   * either of those is set.
+   */
+  index: boolean;
   autoIncrement: boolean;
   defaultValue: string;
   check: string;
@@ -60,6 +67,7 @@ export const createEmptyColumn = (): ColumnDef => ({
   primaryKey: false,
   notNull: false,
   unique: false,
+  index: false,
   autoIncrement: false,
   defaultValue: "",
   check: "",
@@ -206,6 +214,23 @@ export function ColumnEditor({
               tone="emerald"
               active={column.unique}
               onChange={(v) => update("unique", v)}
+            />
+
+            <ToggleChip
+              id={`ix-${index}`}
+              icon={<Zap className="h-3 w-3" />}
+              label="INDEX"
+              tone="violet"
+              active={column.index && !column.primaryKey && !column.unique}
+              disabled={column.primaryKey || column.unique}
+              title={
+                column.primaryKey
+                  ? "PRIMARY KEY columns are already indexed"
+                  : column.unique
+                    ? "UNIQUE columns are already indexed"
+                    : "Create a secondary index on this column"
+              }
+              onChange={(v) => update("index", v)}
             />
           </div>
 
@@ -467,8 +492,18 @@ export function ColumnEditor({
         </div>
       </div>
 
-      {(hasFK || hasCheck || hasDefault || hasGenerated || column.collate) && (
+      {(hasFK ||
+        hasCheck ||
+        hasDefault ||
+        hasGenerated ||
+        column.collate ||
+        (column.index && !column.primaryKey && !column.unique)) && (
         <div className="flex flex-wrap items-center gap-1.5 px-3 pb-2 border-t pt-2 text-[10px] text-muted-foreground">
+          {column.index && !column.primaryKey && !column.unique && (
+            <span className="px-1.5 py-0.5 rounded border bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20 font-mono">
+              INDEX
+            </span>
+          )}
           {hasDefault && (
             <span className="px-1.5 py-0.5 rounded border bg-muted font-mono">
               DEFAULT {column.defaultValue}
@@ -510,9 +545,10 @@ interface ToggleChipProps {
   id: string;
   icon: React.ReactNode;
   label: string;
-  tone: "amber" | "sky" | "emerald";
+  tone: "amber" | "sky" | "emerald" | "violet";
   active: boolean;
   disabled?: boolean;
+  title?: string;
   onChange: (active: boolean) => void;
 }
 
@@ -522,6 +558,8 @@ const TONE: Record<ToggleChipProps["tone"], string> = {
   sky: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30",
   emerald:
     "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  violet:
+    "bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/30",
 };
 
 function ToggleChip({
@@ -531,6 +569,7 @@ function ToggleChip({
   tone,
   active,
   disabled,
+  title,
   onChange,
 }: ToggleChipProps) {
   return (
@@ -539,6 +578,7 @@ function ToggleChip({
       id={id}
       disabled={disabled}
       aria-pressed={active}
+      title={title}
       onClick={() => onChange(!active)}
       className={cn(
         "h-9 px-2.5 flex items-center gap-1.5 rounded-md border text-[11px] font-medium whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed",

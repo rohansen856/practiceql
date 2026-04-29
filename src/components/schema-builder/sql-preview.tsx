@@ -140,15 +140,26 @@ export function generateCreateSQL(
   if (opts.withoutRowid && dialect === "sqlite") sql += " WITHOUT ROWID";
   sql += ";";
 
-  if (opts.createIndexes) {
-    for (const col of validCols) {
-      if (col.unique && !col.primaryKey) {
-        const idxName = `idx_${tableName}_${col.name}`;
-        extraStatements.push(
-          `CREATE UNIQUE INDEX ${qi(idxName)} ON ${qi(tableName)}(${qi(col.name)});`,
-        );
-      }
-    }
+  // Emit secondary indexes. Two sources can ask for one:
+  //   1. `col.index` - the per-column INDEX toggle in the editor
+  //   2. `opts.createIndexes` - the table-level "Extra indexes" switch which
+  //      auto-indexes every UNIQUE column (legacy behaviour, kept for
+  //      backward compatibility)
+  // PRIMARY KEY columns are intentionally skipped because every supported
+  // engine already creates an implicit unique index for them.
+  const indexed = new Set<string>();
+  for (const col of validCols) {
+    if (col.primaryKey) continue;
+    const wantUnique = col.unique && (opts.createIndexes ?? false);
+    const wantPlain = col.index && !col.unique;
+    if (!wantUnique && !wantPlain) continue;
+    if (indexed.has(col.name)) continue;
+    indexed.add(col.name);
+    const idxName = `idx_${tableName}_${col.name}`;
+    const keyword = wantUnique ? "CREATE UNIQUE INDEX" : "CREATE INDEX";
+    extraStatements.push(
+      `${keyword} ${qi(idxName)} ON ${qi(tableName)}(${qi(col.name)});`,
+    );
   }
 
   return extraStatements.length > 0
