@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TableInfo, ColumnInfo, ForeignKeyInfo } from "@/types/sql";
+import { TableInfo, ColumnInfo, ForeignKeyInfo, QueryResult } from "@/types/sql";
 import { useDBStore } from "@/stores/db-store";
 import {
   Trash2,
@@ -24,16 +24,24 @@ import {
   ArrowRight,
   Ban,
   Hash,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { quoteIdent, type SqlDialect } from "@/lib/sql/dialect";
+import { EditTableDialog } from "./edit-table-dialog";
 
 interface TableManagerProps {
   tables: TableInfo[];
   schemas: Record<string, ColumnInfo[]>;
   dialect?: SqlDialect;
   onExecute: (sql: string) => Promise<void>;
-  onRefresh: () => void;
+  /**
+   * Raw engine `executeSQL` used by the Edit dialog when it needs to read
+   * results back (e.g. listing indexes). Mutations from inside the dialog
+   * also go through this and are followed by `onRefresh`.
+   */
+  executeSQL: (sql: string) => Promise<QueryResult[] | null | undefined>;
+  onRefresh: () => Promise<void> | void;
 }
 
 export function TableManager({
@@ -41,11 +49,13 @@ export function TableManager({
   schemas,
   dialect = "sqlite",
   onExecute,
+  executeSQL,
   onRefresh,
 }: TableManagerProps) {
   const foreignKeys = useDBStore((s) => s.foreignKeys);
   const rowCounts = useDBStore((s) => s.rowCounts);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<string | null>(null);
 
   const handleDrop = async (tableName: string) => {
     try {
@@ -99,6 +109,12 @@ export function TableManager({
     );
   }
 
+  const editTable = editTarget
+    ? tables.find((t) => t.name === editTarget) ?? null
+    : null;
+  const editColumns = editTable ? schemas[editTable.name] ?? [] : [];
+  const editForeignKeys = editTable ? foreignKeys[editTable.name] ?? [] : [];
+
   return (
     <div className="space-y-2">
       {tables.map((table) => {
@@ -139,6 +155,16 @@ export function TableManager({
               <Badge variant="outline" className="text-[10px]">
                 {cols.length} cols
               </Badge>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setEditTarget(table.name)}
+                title="Edit table"
+                disabled={table.type === "view"}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -287,6 +313,16 @@ export function TableManager({
           </div>
         );
       })}
+
+      <EditTableDialog
+        tableName={editTable?.name ?? null}
+        columns={editColumns}
+        foreignKeys={editForeignKeys}
+        dialect={dialect}
+        executeSQL={executeSQL}
+        onRefresh={onRefresh}
+        onClose={() => setEditTarget(null)}
+      />
     </div>
   );
 }

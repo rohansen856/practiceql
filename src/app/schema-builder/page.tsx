@@ -210,6 +210,7 @@ export default function SchemaBuilderPage() {
                   schemas={schemas}
                   dialect={dialect}
                   onExecute={handleExecute}
+                  executeSQL={executeSQL}
                   onRefresh={refreshTables}
                 />
               </TabsContent>
